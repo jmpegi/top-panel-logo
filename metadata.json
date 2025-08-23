@@ -1,0 +1,9 @@
+{
+  "uuid": "top-panel-logo@jmpegi.github.com",
+  "name": "Top Panel Logo",
+  "description": "Adds a customizable icon to the GNOME Shell top panel",
+  "shell-version": ["48"],
+  "settings-schema": "org.gnome.shell.extensions.top-panel-logo",
+  "url": "https://github.com/jmpegi/top-panel-logo",
+  "license": "GPL-3.0"
+}

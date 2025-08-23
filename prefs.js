@@ -1,0 +1,412 @@
+/*
+ * Copyright (C) 2025 jmpegi <jmpegi@protonmail.com>
+ *
+ * This file is part of Top Panel Logo GNOME Shell Extension.
+ *
+ * Top Panel Logo GNOME Shell Extension is free software: you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation, either version 3 of the License, or
+ * (at your option) any later version.
+ *
+ * Top Panel Logo GNOME Shell Extension is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+ * GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License
+ * along with Top Panel Logo GNOME Shell Extension.  If not, see <https://www.gnu.org/licenses/>.
+ */
+
+import Adw from "gi://Adw";
+import Gio from "gi://Gio";
+import Gtk from "gi://Gtk";
+import GLib from "gi://GLib";
+import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
+
+const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
+
+export default class TopPanelLogoPreferences extends ExtensionPreferences {
+  fillPreferencesWindow(window) {
+    this.settings = this.getSettings();
+
+    const page = new Adw.PreferencesPage();
+    window.add(page);
+    const mainGroup = new Adw.PreferencesGroup();
+    page.add(mainGroup);
+    const prefsBox = new Gtk.Box({
+      orientation: Gtk.Orientation.VERTICAL,
+      spacing: 12,
+      margin_top: 12,
+      margin_bottom: 12,
+      margin_start: 12,
+      margin_end: 12,
+    });
+    mainGroup.add(prefsBox);
+
+    // === ICON SETTINGS ===
+    const iconGroup = new Adw.PreferencesGroup({ title: "Icon Settings" });
+    prefsBox.append(iconGroup);
+
+    const iconPathRow = new Adw.ActionRow({ title: "Icon Path" });
+    const iconPathEntry = new Gtk.Entry({
+      text: this.getIconPath(),
+      hexpand: true,
+    });
+    iconPathEntry.connect("changed", () =>
+      this.settings.set_string("icon-path", iconPathEntry.get_text())
+    );
+    const fileChooserButton = new Gtk.Button({ label: "Browse" });
+    fileChooserButton.connect("clicked", () => {
+      const fileChooser = new Gtk.FileChooserDialog({
+        title: "Select Icon File",
+        action: Gtk.FileChooserAction.OPEN,
+        transient_for: window,
+        modal: true,
+      });
+      fileChooser.add_button("Cancel", Gtk.ResponseType.CANCEL);
+      fileChooser.add_button("Select", Gtk.ResponseType.OK);
+
+      const imgFilter = new Gtk.FileFilter();
+      imgFilter.set_name("Image Files");
+      IMAGE_MIME_TYPES.forEach((m) => imgFilter.add_mime_type(m));
+      fileChooser.add_filter(imgFilter);
+
+      fileChooser.connect("response", (dlg, resp) => {
+        if (resp === Gtk.ResponseType.OK) {
+          const file = dlg.get_file();
+          if (file) {
+            const path = file.get_path();
+            if (!GLib.file_test(path, GLib.FileTest.EXISTS)) {
+              window.add_toast(
+                new Adw.Toast({
+                  title: "Icon file does not exist",
+                  timeout: 3,
+                })
+              );
+            } else {
+              iconPathEntry.set_text(path);
+              this.settings.set_string("icon-path", path);
+            }
+          }
+        }
+        dlg.close();
+      });
+      fileChooser.show();
+    });
+    iconPathRow.add_suffix(iconPathEntry);
+    iconPathRow.add_suffix(fileChooserButton);
+    iconGroup.add(iconPathRow);
+
+    const iconSizeRow = new Adw.ActionRow({ title: "Icon Size" });
+    const iconSizeSpin = new Gtk.SpinButton({
+      adjustment: new Gtk.Adjustment({
+        lower: 16,
+        upper: 128,
+        step_increment: 1,
+      }),
+      numeric: true,
+    });
+    iconSizeSpin.set_value(this.getIconSize());
+    iconSizeSpin.connect("value-changed", () =>
+      this.settings.set_int("icon-size", iconSizeSpin.get_value())
+    );
+    iconSizeRow.add_suffix(iconSizeSpin);
+    iconGroup.add(iconSizeRow);
+
+    const paddingRow = new Adw.ActionRow({ title: "Horizontal Padding" });
+    const paddingSpin = new Gtk.SpinButton({
+      adjustment: new Gtk.Adjustment({
+        lower: 0,
+        upper: 48,
+        step_increment: 1,
+      }),
+      numeric: true,
+    });
+    paddingSpin.set_value(this.getPadding());
+    paddingSpin.connect("value-changed", () =>
+      this.settings.set_int("horizontal-padding", paddingSpin.get_value())
+    );
+    paddingRow.add_suffix(paddingSpin);
+    iconGroup.add(paddingRow);
+
+    // Helper for Flatpak detection
+    const extractFlatpakId = (execLine, fallbackId) => {
+      let clean = execLine.replace(/%[fFuUdDnNickvm]/g, "").trim();
+      let parts = clean.split(/\s+/);
+      let idx = parts.findIndex(
+        (p) => p.endsWith("flatpak") || p === "flatpak"
+      );
+      if (idx === -1 || parts[idx + 1] !== "run") return null;
+      for (let i = idx + 2; i < parts.length; i++) {
+        if (!parts[i].startsWith("-")) return parts[i];
+      }
+      return fallbackId;
+    };
+    const makeAppChooserHandler = (entry, key) => () => {
+      const appChooser = new Gtk.AppChooserDialog({
+        content_type: "application/x-desktop",
+        transient_for: window,
+      });
+      appChooser.set_resizable(true);
+      appChooser.set_default_size(600, 400);
+      appChooser.connect("response", (dlg, resp) => {
+        if (resp === Gtk.ResponseType.OK) {
+          const appInfo = dlg.get_app_info();
+          if (appInfo) {
+            const id = appInfo.get_id();
+            let cmd;
+            if (id && id.endsWith(".desktop")) {
+              try {
+                const deskInfo = Gio.DesktopAppInfo.new(id);
+                if (deskInfo) {
+                  const execLine = deskInfo.get_commandline();
+                  if (execLine.includes("flatpak run")) {
+                    const appId = extractFlatpakId(
+                      execLine,
+                      id.replace(/\.desktop$/, "")
+                    );
+                    cmd = `flatpak run '${appId}'`;
+                  } else {
+                    cmd = appInfo.get_executable();
+                  }
+                } else cmd = appInfo.get_executable();
+              } catch {
+                cmd = appInfo.get_executable();
+              }
+            } else cmd = appInfo.get_executable();
+            entry.set_text(cmd);
+            this.settings.set_string(key, cmd);
+          }
+        }
+        dlg.close();
+      });
+      appChooser.present();
+    };
+
+    // === ACTIONS ===
+    const actions = [
+      "Show Overview",
+      "Show Apps Menu",
+      "Hide All Windows",
+      "Open System Monitor",
+      "Launch App",
+      "Custom Command",
+    ];
+
+    const leftClickGroup = new Adw.PreferencesGroup({
+      title: "Left Click",
+    });
+    prefsBox.append(leftClickGroup);
+    const leftCombo = new Adw.ComboRow({ title: "Left Click Action" });
+    const leftModel = new Gtk.StringList();
+    actions.forEach((a) => leftModel.append(a));
+    leftCombo.model = leftModel;
+    leftCombo.selected = this.getLeftClickAction();
+    leftCombo.connect("notify::selected", () =>
+      this.settings.set_int("left-click-action", leftCombo.get_selected())
+    );
+    leftClickGroup.add(leftCombo);
+
+    const leftAppRow = new Adw.ActionRow({ title: "App to Launch" });
+    const leftAppEntry = new Gtk.Entry({
+      text: this.settings.get_string("left-click-app"),
+    });
+    leftAppEntry.connect("changed", () =>
+      this.settings.set_string("left-click-app", leftAppEntry.get_text())
+    );
+    const leftChooserBtn = new Gtk.Button({ label: "Choose App" });
+    leftChooserBtn.connect(
+      "clicked",
+      makeAppChooserHandler(leftAppEntry, "left-click-app")
+    );
+    leftAppRow.add_suffix(leftAppEntry);
+    leftAppRow.add_suffix(leftChooserBtn);
+    leftClickGroup.add(leftAppRow);
+
+    const leftCmdRow = new Adw.ActionRow({ title: "Custom Command" });
+    const leftCmdEntry = new Gtk.Entry({
+      text: this.settings.get_string("left-custom-command"),
+    });
+    leftCmdEntry.connect("changed", () =>
+      this.settings.set_string("left-custom-command", leftCmdEntry.get_text())
+    );
+    leftCmdRow.add_suffix(leftCmdEntry);
+    leftClickGroup.add(leftCmdRow);
+
+    const rightClickGroup = new Adw.PreferencesGroup({
+      title: "Right Click",
+    });
+    prefsBox.append(rightClickGroup);
+    const rightCombo = new Adw.ComboRow({ title: "Right Click Action" });
+    const rightModel = new Gtk.StringList();
+    actions.forEach((a) => rightModel.append(a));
+    rightCombo.model = rightModel;
+    // Default to "Hide All Windows" if unset
+    rightCombo.selected = this.settings.get_int("right-click-action") || 2;
+    rightCombo.connect("notify::selected", () =>
+      this.settings.set_int("right-click-action", rightCombo.get_selected())
+    );
+    rightClickGroup.add(rightCombo);
+
+    const rightAppRow = new Adw.ActionRow({ title: "App to Launch" });
+    const rightAppEntry = new Gtk.Entry({
+      text: this.settings.get_string("right-click-app"),
+    });
+    rightAppEntry.connect("changed", () =>
+      this.settings.set_string("right-click-app", rightAppEntry.get_text())
+    );
+    const rightChooserBtn = new Gtk.Button({ label: "Choose App" });
+    rightChooserBtn.connect(
+      "clicked",
+      makeAppChooserHandler(rightAppEntry, "right-click-app")
+    );
+    rightAppRow.add_suffix(rightAppEntry);
+    rightAppRow.add_suffix(rightChooserBtn);
+    rightClickGroup.add(rightAppRow);
+
+    const rightCmdRow = new Adw.ActionRow({ title: "Custom Command" });
+    const rightCmdEntry = new Gtk.Entry({
+      text: this.settings.get_string("right-custom-command"),
+    });
+    rightCmdEntry.connect("changed", () =>
+      this.settings.set_string("right-custom-command", rightCmdEntry.get_text())
+    );
+    rightCmdRow.add_suffix(rightCmdEntry);
+    rightClickGroup.add(rightCmdRow);
+
+    // Row visibility toggle
+    const toggleVis = (combo, rowApp, rowCmd) => {
+      const sel = combo.get_selected();
+      rowApp.set_visible(sel === 4);
+      rowCmd.set_visible(sel === 5);
+    };
+    leftCombo.connect("notify::selected", () =>
+      toggleVis(leftCombo, leftAppRow, leftCmdRow)
+    );
+    rightCombo.connect("notify::selected", () =>
+      toggleVis(rightCombo, rightAppRow, rightCmdRow)
+    );
+    toggleVis(leftCombo, leftAppRow, leftCmdRow);
+    toggleVis(rightCombo, rightAppRow, rightCmdRow);
+
+    // Restore defaults button
+    const actionsGroup = new Adw.PreferencesGroup();
+    page.add(actionsGroup);
+    const restoreButton = new Gtk.Button({ label: "Restore Defaults" });
+    restoreButton.connect("clicked", () => {
+      // Icon Path
+      let defIconPath = this.settings.settings_schema
+        .get_key("icon-path")
+        .get_default_value();
+      this.settings.set_value("icon-path", defIconPath);
+      iconPathEntry.set_text(defIconPath.unpack());
+
+      // Icon Size
+      let defIconSize = this.settings.settings_schema
+        .get_key("icon-size")
+        .get_default_value();
+      this.settings.set_value("icon-size", defIconSize);
+      iconSizeSpin.set_value(defIconSize.unpack());
+
+      // Horizontal Padding
+      let defPadding = this.settings.settings_schema
+        .get_key("horizontal-padding")
+        .get_default_value();
+      this.settings.set_value("horizontal-padding", defPadding);
+      paddingSpin.set_value(defPadding.unpack());
+
+      // Left Click Action
+      let defLeftClick = this.settings.settings_schema
+        .get_key("left-click-action")
+        .get_default_value();
+      this.settings.set_value("left-click-action", defLeftClick);
+      leftCombo.set_selected(defLeftClick.unpack());
+
+      // Left App
+      let defLeftApp = this.settings.settings_schema
+        .get_key("left-click-app")
+        .get_default_value();
+      this.settings.set_value("left-click-app", defLeftApp);
+      leftAppEntry.set_text(defLeftApp.unpack());
+
+      // Left Custom Command
+      let defLeftCmd = this.settings.settings_schema
+        .get_key("left-custom-command")
+        .get_default_value();
+      this.settings.set_value("left-custom-command", defLeftCmd);
+      leftCmdEntry.set_text(defLeftCmd.unpack());
+
+      // Right Click Action
+      let defRightClick = this.settings.settings_schema
+        .get_key("right-click-action")
+        .get_default_value();
+      this.settings.set_value("right-click-action", defRightClick);
+      rightCombo.set_selected(defRightClick.unpack());
+
+      // Right App
+      let defRightApp = this.settings.settings_schema
+        .get_key("right-click-app")
+        .get_default_value();
+      this.settings.set_value("right-click-app", defRightApp);
+      rightAppEntry.set_text(defRightApp.unpack());
+
+      // Right Custom Command
+      let defRightCmd = this.settings.settings_schema
+        .get_key("right-custom-command")
+        .get_default_value();
+      this.settings.set_value("right-custom-command", defRightCmd);
+      rightCmdEntry.set_text(defRightCmd.unpack());
+    });
+    actionsGroup.add(restoreButton);
+  }
+
+  getIconPath() {
+    return (
+      this.settings.get_string("icon-path") ||
+      this.settings.settings_schema
+        .get_key("icon-path")
+        .get_default_value()
+        .unpack()
+    );
+  }
+
+  getIconSize() {
+    return (
+      this.settings.get_int("icon-size") ||
+      this.settings.settings_schema
+        .get_key("icon-size")
+        .get_default_value()
+        .unpack()
+    );
+  }
+
+  getPadding() {
+    return (
+      this.settings.get_int("horizontal-padding") ||
+      this.settings.settings_schema
+        .get_key("horizontal-padding")
+        .get_default_value()
+        .unpack()
+    );
+  }
+
+  getLeftClickAction() {
+    return (
+      this.settings.get_int("left-click-action") ||
+      this.settings.settings_schema
+        .get_key("left-click-action")
+        .get_default_value()
+        .unpack()
+    );
+  }
+
+  getRightClickAction() {
+    return (
+      this.settings.get_int("right-click-action") ||
+      this.settings.settings_schema
+        .get_key("right-click-action")
+        .get_default_value()
+        .unpack()
+    );
+  }
+}
