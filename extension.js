@@ -107,14 +107,8 @@ export default class TopPanelLogoExtension extends Extension {
         Main.overview.toggle();
         break;
 
-      case 1: // Show apps grid within overview (not working currently)
-        Main.overview.toggle();
-        if (
-          Main.overview._viewSelector &&
-          Main.overview._viewSelector._showAppsButton
-        ) {
-          Main.overview._viewSelector._showAppsButton.checked = true;
-        }
+      case 1: // Show apps grid within overview
+        Main.overview.showApps();
         break;
 
       case 2: // Hide all windows
@@ -183,6 +177,9 @@ export default class TopPanelLogoExtension extends Extension {
             e
           );
         }
+        break;
+
+      case 6: //Do nothing
         break;
     }
   }

@@ -226,11 +226,12 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     // === ACTIONS ===
     const actions = [
       "Show Overview",
-      "Show Apps Menu",
+      "Show Apps Grid",
       "Hide All Windows",
       "Open System Monitor",
       "Launch App",
       "Custom Command",
+      "Do Nothing",
     ];
 
     const leftClickGroup = new Adw.PreferencesGroup({

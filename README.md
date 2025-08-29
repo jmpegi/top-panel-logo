@@ -28,6 +28,8 @@ Launch App – Launch a user‑chosen application (.desktop app or command).
 
 Custom Command – Run any shell command you define.
 
+Do Nothing - Does nothing.
+
 ## 🎨 Icon Customization
 
 Icon Path – Point to any PNG, JPEG, or SVG file to display.
@@ -63,3 +65,6 @@ From GitHub – clone this repo to ~/.local/share/gnome-shell/extensions/top-pan
 Released under GPL‑3.0 — feel free to modify or contribute.
 
 Copyright (C) 2025 jmpegi <jmpegi@protonmail.com>
+
+
+Any feedback, ideas and bug reports are welcome!
