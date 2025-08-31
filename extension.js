@@ -35,15 +35,49 @@ export default class TopPanelLogoExtension extends Extension {
 
     this._button.remove_all_children();
 
-    // Create icon item and add it to the button
-    const iconFile = Gio.File.new_for_path(iconPath);
-    const icon = new St.Icon({
-      gicon: new Gio.FileIcon({ file: iconFile }),
-      icon_size: iconSize,
-      style_class: "system-status-icon",
-      style: `padding: 0 ${horizontalPadding}px;`,
-    });
-    this._button.add_child(icon);
+    function resolveIconPath(pathSetting) {
+      if (pathSetting.startsWith("~/")) {
+        return GLib.get_home_dir() + pathSetting.substring(1);
+      }
+      return pathSetting;
+    }
+
+    const resolvedPath = resolveIconPath(iconPath);
+    let icon = null;
+
+    try {
+      const iconFile = Gio.File.new_for_path(resolvedPath);
+      if (iconFile.query_exists(null)) {
+        icon = new St.Icon({
+          gicon: new Gio.FileIcon({ file: iconFile }),
+          icon_size: iconSize,
+          style_class: "system-status-icon",
+          style: `padding: 0 ${horizontalPadding}px;`,
+        });
+      } else {
+        console.log("Icon file not found: " + resolvedPath);
+        // Create a fallback St.Icon with themed icon
+        icon = new St.Icon({
+          gicon: new Gio.ThemedIcon({ name: "image-missing" }),
+          icon_size: iconSize,
+          style_class: "system-status-icon",
+          style: `padding: 0 ${horizontalPadding}px;`,
+        });
+      }
+    } catch (e) {
+      console.log("Error loading icon: " + e.message);
+      // Create error fallback icon
+      icon = new St.Icon({
+        gicon: new Gio.ThemedIcon({ name: "image-missing" }),
+        icon_size: iconSize,
+        style_class: "system-status-icon",
+        style: `padding: 0 ${horizontalPadding}px;`,
+      });
+    }
+
+    if (icon) {
+      this._button.add_child(icon);
+    }
   }
 
   // Called when extension is enabled by the user

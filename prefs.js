@@ -92,9 +92,34 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: iconPath,
       hexpand: true,
     });
-    iconPathEntry.connect("changed", () =>
-      settings.set_string("icon-path", iconPathEntry.get_text())
-    );
+
+    // Use a timeout to debounce the changes
+    let changeTimeout = null;
+    iconPathEntry.connect("notify::text", () => {
+      if (changeTimeout) {
+        GLib.source_remove(changeTimeout);
+        changeTimeout = null;
+      }
+
+      // Set a timeout to delay the settings update
+      changeTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+        const path = iconPathEntry.get_text();
+        settings.set_string("icon-path", path);
+        changeTimeout = null;
+        return GLib.SOURCE_REMOVE;
+      });
+    });
+
+    // Also update on Enter key press
+    iconPathEntry.connect("activate", () => {
+      if (changeTimeout) {
+        GLib.source_remove(changeTimeout);
+        changeTimeout = null;
+      }
+      const path = iconPathEntry.get_text();
+      settings.set_string("icon-path", path);
+    });
+    
     const fileChooserButton = new Gtk.Button({ label: "Browse" });
     fileChooserButton.connect("clicked", () => {
       const fileChooser = new Gtk.FileChooserDialog({
@@ -115,8 +140,9 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         if (resp === Gtk.ResponseType.OK) {
           const file = dlg.get_file();
           if (file) {
-            const path = file.get_path();
-            if (!GLib.file_test(path, GLib.FileTest.EXISTS)) {
+            const absolutePath = file.get_path();
+
+            if (!GLib.file_test(absolutePath, GLib.FileTest.EXISTS)) {
               window.add_toast(
                 new Adw.Toast({
                   title: "Icon file does not exist",
@@ -124,13 +150,22 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
                 })
               );
             } else {
-              iconPathEntry.set_text(path);
-              settings.set_string("icon-path", path);
+              // Convert to ~ notation for display
+              const homeDir = GLib.get_home_dir();
+              let displayPath = absolutePath;
+
+              if (absolutePath.startsWith(homeDir + "/")) {
+                displayPath = "~" + absolutePath.substring(homeDir.length);
+              }
+
+              iconPathEntry.set_text(displayPath);
+              // Don't set settings here - let focus-out-event handle it
             }
           }
         }
         dlg.close();
       });
+
       fileChooser.show();
     });
     iconPathRow.add_suffix(iconPathEntry);
