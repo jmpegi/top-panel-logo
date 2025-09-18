@@ -1,6 +1,6 @@
-# Top Panel Logo – Customizable Icon with Click Actions for GNOME Shell
+# Top Panel Logo – Customizable Icon with Click Actions
 
-Top Panel Logo is a lightweight GNOME Shell extension that adds a customizable icon to the GNOME top panel.
+Top Panel Logo is a lightweight GNOME Shell extension that adds a customizable icon to the top panel.
 
 Both left‑click and right‑click actions are user‑configurable, allowing for powerful shortcuts without cluttering your workflow.
 
@@ -58,7 +58,13 @@ For Custom Command or Launch App, use valid executable commands.
 
 From GNOME Extensions website – search for “Top Panel Logo”.
 
-From GitHub – clone this repo to ~/.local/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com, restart GNOME Shell (logout or reboot) and enable the extension.
+From GitHub – clone this repo to `~/.local/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com`, restart GNOME Shell (logout or reboot) and enable the extension.
+
+## 💡 Tips
+
+Most GNU/Linux distributions store their logo somewhere inside `/usr/share/pixmaps/`
+
+For ease of use, disable 'Hot Corner' under 'GNOME Settings/Multitasking'.
 
 ## 📝 License
 

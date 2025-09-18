@@ -43,7 +43,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .get_key("icon-size")
         .get_default_value()
         .unpack() ||
-      36;
+      32;
 
     const iconPadding =
       settings.get_int("horizontal-padding") ||
@@ -119,7 +119,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       const path = iconPathEntry.get_text();
       settings.set_string("icon-path", path);
     });
-    
+
+    let lastUsedFolder = null;
     const fileChooserButton = new Gtk.Button({ label: "Browse" });
     fileChooserButton.connect("clicked", () => {
       const fileChooser = new Gtk.FileChooserDialog({
@@ -128,6 +129,23 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         transient_for: window,
         modal: true,
       });
+
+      // Set current folder to last used folder if available and valid
+      if (lastUsedFolder) {
+        try {
+          if (GLib.file_test(lastUsedFolder, GLib.FileTest.IS_DIR)) {
+            const folderFile = Gio.File.new_for_path(lastUsedFolder);
+            fileChooser.set_current_folder(folderFile);
+          } else {
+            // Folder no longer exists, reset the variable
+            lastUsedFolder = null;
+          }
+        } catch (error) {
+          console.error(`Error accessing last used folder: ${error}`);
+          lastUsedFolder = null; // Reset if there's any error
+        }
+      }
+
       fileChooser.add_button("Cancel", Gtk.ResponseType.CANCEL);
       fileChooser.add_button("Select", Gtk.ResponseType.OK);
 
@@ -141,6 +159,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
           const file = dlg.get_file();
           if (file) {
             const absolutePath = file.get_path();
+
+            try {
+              const parentDir = file.get_parent();
+              if (parentDir) {
+                const parentPath = parentDir.get_path();
+                // Verify the parent directory still exists before remembering it
+                if (GLib.file_test(parentPath, GLib.FileTest.IS_DIR)) {
+                  lastUsedFolder = parentPath;
+                }
+              }
+            } catch (error) {
+              console.error(`Error remembering folder: ${error}`);
+              // Don't set lastUsedFolder if there's any error
+            }
 
             if (!GLib.file_test(absolutePath, GLib.FileTest.EXISTS)) {
               window.add_toast(

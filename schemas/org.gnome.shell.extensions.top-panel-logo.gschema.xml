@@ -8,7 +8,7 @@
     </key>
     
     <key type="i" name="icon-size">
-      <default>36</default>
+      <default>32</default>
       <summary>Icon Size</summary>
       <description>Size of the icon in pixels</description>
     </key>
