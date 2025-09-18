@@ -93,11 +93,6 @@ export default class TopPanelLogoExtension extends Extension {
       }
     );
 
-    // Set default action for right-click, if not set
-    if (this._settings.get_int("right-click-action") === 0) {
-      this._settings.set_int("right-click-action", 3);
-    }
-
     // Create a panel button
     this._button = new PanelMenu.Button(0.0, this.metadata.name, false);
 

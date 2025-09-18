@@ -38,6 +38,12 @@
       <description>App to launch on left click</description>
     </key>
     
+    <key type="s" name="left-custom-command">
+      <default>''</default>
+      <summary>Left Click Custom Command</summary>
+      <description>Custom command to run on left click</description>
+    </key>
+    
     <key type="i" name="right-click-action">
       <default>2</default>
       <summary>Right Click Action</summary>
@@ -55,12 +61,6 @@
       <default>''</default>
       <summary>Right Click App</summary>
       <description>App to launch on right click</description>
-    </key>
-    
-    <key type="s" name="left-custom-command">
-      <default>''</default>
-      <summary>Left Click Custom Command</summary>
-      <description>Custom command to run on left click</description>
     </key>
     
     <key type="s" name="right-custom-command">
