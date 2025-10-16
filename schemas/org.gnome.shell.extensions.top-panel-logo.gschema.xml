@@ -2,7 +2,7 @@
 <schemalist gettext-domain="gnome-shell-extensions">
   <schema id="org.gnome.shell.extensions.top-panel-logo" path="/org/gnome/shell/extensions/top-panel-logo/">
     <key type="s" name="icon-path">
-      <default>'~/.face'</default>
+      <default>'/usr/share/icons/gnome/scalable/places/gnome-foot.svg'</default>
       <summary>Path to the icon</summary>
       <description>Full path to the icon file to be displayed in the top panel</description>
     </key>

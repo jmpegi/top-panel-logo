@@ -1,12 +1,12 @@
-# Top Panel Logo – Customizable Icon with Click Actions
+# Top Panel Logo
 
-Top Panel Logo is a lightweight GNOME Shell extension that adds a customizable icon to the top panel.
+Top Panel Logo is a **lightweight GNOME Shell extension** that adds a customizable icon to the top panel.
 
 Both left‑click and right‑click actions are user‑configurable, allowing for powerful shortcuts without cluttering your workflow.
 
 ## ✨ What it does
 
-Places a customizable icon/logo in the GNOME Shell top panel (left section).
+**Places a customizable icon in the GNOME Shell top panel** (left section).
 
 Left click and right click can be assigned to different actions from a fixed set of useful options.
 
@@ -50,23 +50,31 @@ Left click: Custom Command, Right click: Show Apps Menu.
 
 GNOME Shell 46+
 
-gnome-system-monitor if you want to use the 'Open System Monitor' action.
-
 For 'Custom Command' or 'Launch App', use valid executable commands.
 
 ## 📦 Installation
 
-There are 2 ways of installation: 
+There are 2 ways of installation:
 
 - From [GNOME Extensions website](https://extensions.gnome.org/extension/8559/top-panel-logo/).
 
-- From [GitHub](https://github.com/jmpegi/top-panel-logo) – clone this repo to `~/.local/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com`, restart GNOME Shell (logout or reboot) and enable the extension.
+- From [GitHub](https://github.com/jmpegi/top-panel-logo):
+
+  1. Clone this repo to `~/.local/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com`.
+  2. Restart GNOME Shell (logout or reboot).
+  3. Enable the extension.
+
+     NOTE: You can also install the extension system-wide by placing it in `/usr/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com` instead. This is not recommended.
 
 ## 💡 Tips
 
-Most GNU/Linux distributions store their logo somewhere inside `/usr/share/pixmaps/`
+Most GNU/Linux distributions store their logo somewhere inside `/usr/share/pixmaps/` or `/usr/share/icons/desktop-base/`
 
 For ease of use, disable 'Hot Corner' under 'GNOME Settings/Multitasking'.
+
+To prevent gnome-terminal from automatically closing when running a custom command, use:  
+`gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
+`gnome-terminal -- bash -c 'yourcommand; wait'`
 
 ## 📝 License
 

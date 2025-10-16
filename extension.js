@@ -58,7 +58,7 @@ export default class TopPanelLogoExtension extends Extension {
         console.log("Icon file not found: " + resolvedPath);
         // Create a fallback St.Icon with themed icon
         icon = new St.Icon({
-          gicon: new Gio.ThemedIcon({ name: "image-missing" }),
+          gicon: new Gio.ThemedIcon({ name: "image-x-generic" }),
           icon_size: iconSize,
           style_class: "system-status-icon",
           style: `padding: 0 ${horizontalPadding}px;`,
@@ -84,7 +84,7 @@ export default class TopPanelLogoExtension extends Extension {
   enable() {
     this._settings = this.getSettings();
 
-    // Track which windows are hidden for "show desktop" functionality
+    // Track which windows are hidden for "Hide all windows" functionality
     this._desktopHiddenWindows = [];
     this._workspaceChangedId = global.workspace_manager.connect(
       "active-workspace-changed",
@@ -125,19 +125,23 @@ export default class TopPanelLogoExtension extends Extension {
       return true; // Prevent further handling
     });
 
-    // Add button to GNOME Shell's top panel (left side)
+    // Add button to top panel (left side)
     Main.panel.addToStatusArea(this.uuid, this._button, 0, "left");
   }
 
   // Respond to the mouse click actions as configured in settings
   _handleClickAction(action, clickType) {
     switch (action) {
-      case 0: // Show GNOME overview
+      case 0: // Show overview
         Main.overview.toggle();
         break;
 
-      case 1: // Show apps grid within overview
-        Main.overview.showApps();
+      case 1: // Show apps grid
+        if (Main.overview.visible) {
+          Main.overview.hide();
+        } else {
+          Main.overview.showApps();
+        }
         break;
 
       case 2: // Hide all windows
@@ -169,7 +173,7 @@ export default class TopPanelLogoExtension extends Extension {
         }
         break;
 
-      case 3: // Launch System Monitor
+      case 3: // Launch system monitor
         try {
           GLib.spawn_command_line_async("gnome-system-monitor");
         } catch (e) {
