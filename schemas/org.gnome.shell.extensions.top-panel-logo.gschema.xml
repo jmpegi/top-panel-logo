@@ -28,7 +28,8 @@
         2: Minimize All Windows,
         3: Open System Monitor,
         4: Launch App,
-        5: Custom Command
+        5: Custom Command,
+        6: Do Nothing
       </description>
     </key>
     
@@ -53,7 +54,8 @@
         2: Minimize All Windows,
         3: Open System Monitor,
         4: Launch App,
-        5: Custom Command
+        5: Custom Command,
+        6: Do Nothing
       </description>
     </key>
     
