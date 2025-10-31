@@ -1,14 +1,14 @@
-# Top Panel Logo
+# <img src="assets/top-panel-logo-icon.png" alt="Icon" style="height: 2rem;"> Top Panel Logo
 
-Top Panel Logo is a **lightweight GNOME Shell extension** that adds a customizable icon to the top panel.
+Top Panel Logo is a **lightweight GNOME Shell extension** that **adds a customizable icon to the top panel**.
 
-Both left‑click and right‑click actions are user‑configurable, allowing for powerful shortcuts without cluttering your workflow.
+Both left‑click and right‑click actions are configurable, allowing for powerful shortcuts without cluttering your workflow.
+
+![Screenshot](assets/top-panel-logo-screenshot.png)
 
 ## ✨ What it does
 
-**Places a customizable icon in the GNOME Shell top panel** (left section).
-
-Left click and right click can be assigned to different actions from a fixed set of useful options.
+It lets you personalize your GNOME desktop with the icon of your choice. You can easily pick the icon, adjust its size and position, and even customize what happens when you click on it.
 
 Designed to be lightweight: no background polling, no unnecessary signals — all actions run instantly on click.
 
@@ -18,13 +18,13 @@ For either Left Click or Right Click (independently), choose from:
 
 - 'Show Overview' – Opens/closes GNOME Activities Overview.
 
-- 'Show Apps Menu' – Opens GNOME’s applications grid view.
+- 'Show Apps Menu' – Opens/closes GNOME Applications grid view.
 
 - 'Hide All Windows' (Minimize/Restore Windows On Current Workspace) – Matches GNOME's “Hide all normal windows” behavior.
 
 - 'Open System Monitor' – Launches gnome-system-monitor if installed.
 
-- 'Launch App' – Launch a user‑chosen application (Flatpak and .desktop support).
+- 'Launch App' – Launch a user‑chosen application (with Flatpak and AppImage support).
 
 - 'Custom Command' – Run any shell command you define.
 
@@ -56,7 +56,9 @@ For 'Custom Command' or 'Launch App', use valid executable commands.
 
 There are 2 ways of installation:
 
-- From [GNOME Extensions website](https://extensions.gnome.org/extension/8559/top-panel-logo/).
+- From [GNOME Extensions website](https://extensions.gnome.org/extension/8559/top-panel-logo/):  
+
+[![Download from GNOME Extensions website](assets/get_it_on_gnome_extensions.png)](https://extensions.gnome.org/extension/8559/top-panel-logo/)
 
 - From [GitHub](https://github.com/jmpegi/top-panel-logo):
 
@@ -68,13 +70,15 @@ There are 2 ways of installation:
 
 ## 💡 Tips
 
-Most GNU/Linux distributions store their logo somewhere inside `/usr/share/pixmaps/` or `/usr/share/icons/desktop-base/`
+- Most GNU/Linux distributions store their logo somewhere inside `/usr/share/pixmaps/` or `/usr/share/icons/`
 
-For ease of use, disable 'Hot Corner' under 'GNOME Settings/Multitasking'.
+- For ease of use, disable 'Hot Corner' under 'GNOME Settings/Multitasking'.
 
-To prevent gnome-terminal from automatically closing when running a custom command, use:  
+- To prevent gnome-terminal from automatically closing when running a custom command, use:  
+`gnome-terminal -- bash -c 'yourcommand; wait'` or
 `gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
-`gnome-terminal -- bash -c 'yourcommand; wait'`
+`gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close...'`
+
 
 ## 📝 License
 

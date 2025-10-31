@@ -29,6 +29,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
     const settings = this.getSettings();
 
+    // Unpack settings
     const iconPath =
       settings.get_string("icon-path") ||
       settings.settings_schema
@@ -69,17 +70,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .unpack() ||
       2;
 
+    // Create preferences page and main group container
     const page = new Adw.PreferencesPage();
     window.add(page);
     const mainGroup = new Adw.PreferencesGroup();
     page.add(mainGroup);
+
+    // Vertical box to hold preference categories
     const prefsBox = new Gtk.Box({
       orientation: Gtk.Orientation.VERTICAL,
       spacing: 12,
-      margin_top: 12,
-      margin_bottom: 12,
-      margin_start: 12,
-      margin_end: 12,
+      margin_top: 6,
+      margin_bottom: 6,
+      margin_start: 6,
+      margin_end: 6,
     });
     mainGroup.add(prefsBox);
 
@@ -91,35 +95,33 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     const iconPathEntry = new Gtk.Entry({
       text: iconPath,
       hexpand: true,
+      placeholder_text: "/path/to/icon",
     });
 
-    // Use a timeout to debounce the changes
-    let changeTimeout = null;
-    iconPathEntry.connect("notify::text", () => {
-      if (changeTimeout) {
-        GLib.source_remove(changeTimeout);
-        changeTimeout = null;
+    // Debounce timeout for iconPathEntry
+    let iconPathTimeout = null;
+    iconPathEntry.connect("changed", () => {
+      if (iconPathTimeout) {
+        GLib.source_remove(iconPathTimeout);
+        iconPathTimeout = null;
       }
-
-      // Set a timeout to delay the settings update
-      changeTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+      iconPathTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
         const path = iconPathEntry.get_text();
         settings.set_string("icon-path", path);
-        changeTimeout = null;
+        iconPathTimeout = null;
         return GLib.SOURCE_REMOVE;
       });
     });
-
-    // Also update on Enter key press
     iconPathEntry.connect("activate", () => {
-      if (changeTimeout) {
-        GLib.source_remove(changeTimeout);
-        changeTimeout = null;
+      if (iconPathTimeout) {
+        GLib.source_remove(iconPathTimeout);
+        iconPathTimeout = null;
       }
       const path = iconPathEntry.get_text();
       settings.set_string("icon-path", path);
     });
 
+    // FileChooser for iconPathEntry
     let lastUsedFolder = null;
     const fileChooserButton = new Gtk.Button({ label: "Browse" });
     fileChooserButton.connect("clicked", () => {
@@ -129,6 +131,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         transient_for: window,
         modal: true,
       });
+      fileChooser.add_button("Cancel", Gtk.ResponseType.CANCEL);
+      fileChooser.add_button("Select", Gtk.ResponseType.OK);
 
       // Set current folder to last used folder if available and valid
       if (lastUsedFolder) {
@@ -137,7 +141,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
             const folderFile = Gio.File.new_for_path(lastUsedFolder);
             fileChooser.set_current_folder(folderFile);
           } else {
-            // Folder no longer exists, reset the variable
+            // If folder no longer exists, reset the variable
             lastUsedFolder = null;
           }
         } catch (error) {
@@ -146,9 +150,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         }
       }
 
-      fileChooser.add_button("Cancel", Gtk.ResponseType.CANCEL);
-      fileChooser.add_button("Select", Gtk.ResponseType.OK);
-
+      // Restrict filetypes
       const imgFilter = new Gtk.FileFilter();
       imgFilter.set_name("Image Files");
       IMAGE_MIME_TYPES.forEach((m) => imgFilter.add_mime_type(m));
@@ -159,25 +161,22 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
           const file = dlg.get_file();
           if (file) {
             const absolutePath = file.get_path();
-
             try {
+              // Try to remember parent directory
               const parentDir = file.get_parent();
               if (parentDir) {
                 const parentPath = parentDir.get_path();
-                // Verify the parent directory still exists before remembering it
                 if (GLib.file_test(parentPath, GLib.FileTest.IS_DIR)) {
                   lastUsedFolder = parentPath;
                 }
               }
             } catch (error) {
               console.error(`Error remembering folder: ${error}`);
-              // Don't set lastUsedFolder if there's any error
             }
-
             if (!GLib.file_test(absolutePath, GLib.FileTest.EXISTS)) {
               window.add_toast(
                 new Adw.Toast({
-                  title: "Icon file does not exist",
+                  title: "Icon file does not exist or cannot be accessed",
                   timeout: 3,
                 })
               );
@@ -185,25 +184,24 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
               // Convert to ~ notation for display
               const homeDir = GLib.get_home_dir();
               let displayPath = absolutePath;
-
               if (absolutePath.startsWith(homeDir + "/")) {
                 displayPath = "~" + absolutePath.substring(homeDir.length);
               }
-
               iconPathEntry.set_text(displayPath);
-              // Don't set settings here - let focus-out-event handle it
+              settings.set_string("icon-path", absolutePath);
             }
           }
         }
         dlg.close();
       });
-
       fileChooser.show();
     });
+
     iconPathRow.add_suffix(iconPathEntry);
     iconPathRow.add_suffix(fileChooserButton);
     iconGroup.add(iconPathRow);
 
+    // Icon Size
     const iconSizeRow = new Adw.ActionRow({ title: "Icon Size" });
     const iconSizeSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
@@ -220,6 +218,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     iconSizeRow.add_suffix(iconSizeSpin);
     iconGroup.add(iconSizeRow);
 
+    // Icon Padding
     const paddingRow = new Adw.ActionRow({ title: "Horizontal Padding" });
     const paddingSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
@@ -236,6 +235,34 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     paddingRow.add_suffix(paddingSpin);
     iconGroup.add(paddingRow);
 
+    // === ACTIONS ===
+    const actions = [
+      "Show Overview",
+      "Show Apps Grid",
+      "Hide All Windows",
+      "Open System Monitor",
+      "Launch App",
+      "Custom Command",
+      "Do Nothing",
+    ];
+
+    // Display/Absolute path helper functions
+    const toDisplayPath = (absolutePath) => {
+      const homeDir = GLib.get_home_dir();
+      if (absolutePath.startsWith(homeDir + "/")) {
+        return "~" + absolutePath.substring(homeDir.length);
+      }
+      return absolutePath;
+    };
+
+    const toAbsolutePath = (displayPath) => {
+      if (displayPath.startsWith("~/") || displayPath === "~") {
+        const homeDir = GLib.get_home_dir();
+        return displayPath.replace("~", homeDir);
+      }
+      return displayPath;
+    };
+
     // Helper for Flatpak detection
     const extractFlatpakId = (execLine, fallbackId) => {
       let clean = execLine.replace(/%[fFuUdDnNickvm]/g, "").trim();
@@ -249,6 +276,44 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       }
       return fallbackId;
     };
+
+    // Debounce helper for entries to reduce excessive settings writes
+    function setupDebouncedEntry(
+      entry,
+      settings,
+      key,
+      toDisplayPath,
+      toAbsolutePath,
+      delay = 500
+    ) {
+      let AppEntryTimeout = null;
+      const applyChange = () => {
+        const currentText = entry.get_text();
+        const absolutePath = toAbsolutePath(currentText);
+        settings.set_string(key, absolutePath);
+        const displayText = toDisplayPath(absolutePath);
+        if (displayText !== currentText) {
+          entry.set_text(displayText);
+        }
+      };
+      entry.connect("changed", () => {
+        if (AppEntryTimeout) GLib.source_remove(AppEntryTimeout);
+        AppEntryTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
+          applyChange();
+          AppEntryTimeout = null;
+          return GLib.SOURCE_REMOVE;
+        });
+      });
+      entry.connect("activate", () => {
+        if (AppEntryTimeout) {
+          GLib.source_remove(AppEntryTimeout);
+          AppEntryTimeout = null;
+        }
+        applyChange();
+      });
+    }
+
+    // App Chooser logic with Flatpak handling
     const makeAppChooserHandler = (entry, key) => () => {
       const appChooser = new Gtk.AppChooserDialog({
         content_type: "application/x-desktop",
@@ -260,29 +325,24 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         if (resp === Gtk.ResponseType.OK) {
           const appInfo = dlg.get_app_info();
           if (appInfo) {
-            const id = appInfo.get_id();
-            let cmd;
-            if (id && id.endsWith(".desktop")) {
-              try {
-                const deskInfo = Gio.DesktopAppInfo.new(id);
-                if (deskInfo) {
-                  const execLine = deskInfo.get_commandline();
-                  if (execLine.includes("flatpak run")) {
-                    const appId = extractFlatpakId(
-                      execLine,
-                      id.replace(/\.desktop$/, "")
-                    );
-                    cmd = `flatpak run '${appId}'`;
-                  } else {
-                    cmd = appInfo.get_executable();
-                  }
-                } else cmd = appInfo.get_executable();
-              } catch {
-                cmd = appInfo.get_executable();
+            let cmd = appInfo.get_executable();
+            try {
+              const deskInfo = Gio.DesktopAppInfo.new(appInfo.get_id());
+              if (deskInfo) {
+                const execLine = deskInfo.get_commandline();
+                if (execLine && execLine.includes("flatpak run")) {
+                  const appId = extractFlatpakId(execLine, appInfo.get_id());
+                  cmd = `flatpak run ${appId}`;
+                }
               }
-            } else cmd = appInfo.get_executable();
-            entry.set_text(cmd);
+            } catch (e) {
+              console.log(
+                "Could not get app id from Gio.DesktopAppInfo, using executable: ",
+                e
+              );
+            }
             settings.set_string(key, cmd);
+            entry.set_text(toDisplayPath(cmd));
           }
         }
         dlg.close();
@@ -290,17 +350,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       appChooser.present();
     };
 
-    // === ACTIONS ===
-    const actions = [
-      "Show Overview",
-      "Show Apps Grid",
-      "Hide All Windows",
-      "Open System Monitor",
-      "Launch App",
-      "Custom Command",
-      "Do Nothing",
-    ];
-
+    // === LEFT CLICK ACTIONS ===
     const leftClickGroup = new Adw.PreferencesGroup({
       title: "Left Click",
     });
@@ -317,12 +367,21 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
 
     const leftAppRow = new Adw.ActionRow({ title: "App to Launch" });
     const leftAppEntry = new Gtk.Entry({
-      text: settings.get_string("left-click-app"),
+      text: toDisplayPath(settings.get_string("left-click-app") || ""),
+      hexpand: true,
+      placeholder_text: "App or executable",
     });
-    leftAppEntry.connect("changed", () =>
-      settings.set_string("left-click-app", leftAppEntry.get_text())
-    );
-    const leftChooserBtn = new Gtk.Button({ label: "Choose App" });
+    leftAppEntry.connect("changed", () => {
+      setupDebouncedEntry(
+        leftAppEntry,
+        settings,
+        "left-click-app",
+        toDisplayPath,
+        toAbsolutePath,
+        500
+      );
+    });
+    const leftChooserBtn = new Gtk.Button({ label: "Choose" });
     leftChooserBtn.connect(
       "clicked",
       makeAppChooserHandler(leftAppEntry, "left-click-app")
@@ -334,6 +393,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     const leftCmdRow = new Adw.ActionRow({ title: "Custom Command" });
     const leftCmdEntry = new Gtk.Entry({
       text: settings.get_string("left-custom-command"),
+      hexpand: true,
+      placeholder_text: "Command or script",
     });
     leftCmdEntry.connect("changed", () =>
       settings.set_string("left-custom-command", leftCmdEntry.get_text())
@@ -341,6 +402,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     leftCmdRow.add_suffix(leftCmdEntry);
     leftClickGroup.add(leftCmdRow);
 
+    // === RIGHT CLICK ACTIONS ===
     const rightClickGroup = new Adw.PreferencesGroup({
       title: "Right Click",
     });
@@ -357,12 +419,21 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
 
     const rightAppRow = new Adw.ActionRow({ title: "App to Launch" });
     const rightAppEntry = new Gtk.Entry({
-      text: settings.get_string("right-click-app"),
+      text: toDisplayPath(settings.get_string("right-click-app") || ""),
+      hexpand: true,
+      placeholder_text: "App or executable",
     });
-    rightAppEntry.connect("changed", () =>
-      settings.set_string("right-click-app", rightAppEntry.get_text())
-    );
-    const rightChooserBtn = new Gtk.Button({ label: "Choose App" });
+    rightAppEntry.connect("changed", () => {
+      setupDebouncedEntry(
+        rightAppEntry,
+        settings,
+        "right-click-app",
+        toDisplayPath,
+        toAbsolutePath,
+        500
+      );
+    });
+    const rightChooserBtn = new Gtk.Button({ label: "Choose" });
     rightChooserBtn.connect(
       "clicked",
       makeAppChooserHandler(rightAppEntry, "right-click-app")
@@ -374,6 +445,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     const rightCmdRow = new Adw.ActionRow({ title: "Custom Command" });
     const rightCmdEntry = new Gtk.Entry({
       text: settings.get_string("right-custom-command"),
+      hexpand: true,
+      placeholder_text: "Command or script",
     });
     rightCmdEntry.connect("changed", () =>
       settings.set_string("right-custom-command", rightCmdEntry.get_text())
@@ -381,7 +454,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     rightCmdRow.add_suffix(rightCmdEntry);
     rightClickGroup.add(rightCmdRow);
 
-    // Row visibility toggle
+    // Visibility toggle for 'Launch App' and 'Custom Command' rows
     const toggleVis = (combo, rowApp, rowCmd) => {
       const sel = combo.get_selected();
       rowApp.set_visible(sel === 4);
@@ -396,74 +469,59 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     toggleVis(leftCombo, leftAppRow, leftCmdRow);
     toggleVis(rightCombo, rightAppRow, rightCmdRow);
 
-    // Restore defaults button
-    const actionsGroup = new Adw.PreferencesGroup();
-    page.add(actionsGroup);
+    // === RESTORE DEFAULTS ===
+    const restoreDefaultsGroup = new Adw.PreferencesGroup();
+    page.add(restoreDefaultsGroup);
     const restoreButton = new Gtk.Button({ label: "Restore Defaults" });
     restoreButton.connect("clicked", () => {
-      // Icon Path
       let defIconPath = settings.settings_schema
         .get_key("icon-path")
         .get_default_value();
       settings.set_value("icon-path", defIconPath);
       iconPathEntry.set_text(defIconPath.unpack());
-
-      // Icon Size
       let defIconSize = settings.settings_schema
         .get_key("icon-size")
         .get_default_value();
       settings.set_value("icon-size", defIconSize);
       iconSizeSpin.set_value(defIconSize.unpack());
-
-      // Horizontal Padding
       let defPadding = settings.settings_schema
         .get_key("horizontal-padding")
         .get_default_value();
       settings.set_value("horizontal-padding", defPadding);
       paddingSpin.set_value(defPadding.unpack());
-
-      // Left Click Action
       let defLeftClick = settings.settings_schema
         .get_key("left-click-action")
         .get_default_value();
       settings.set_value("left-click-action", defLeftClick);
       leftCombo.set_selected(defLeftClick.unpack());
-
-      // Left App
       let defLeftApp = settings.settings_schema
         .get_key("left-click-app")
         .get_default_value();
+      const defLeftAppValue = defLeftApp.unpack();
       settings.set_value("left-click-app", defLeftApp);
-      leftAppEntry.set_text(defLeftApp.unpack());
-
-      // Left Custom Command
+      leftAppEntry.set_text(toDisplayPath(defLeftAppValue));
       let defLeftCmd = settings.settings_schema
         .get_key("left-custom-command")
         .get_default_value();
       settings.set_value("left-custom-command", defLeftCmd);
       leftCmdEntry.set_text(defLeftCmd.unpack());
-
-      // Right Click Action
       let defRightClick = settings.settings_schema
         .get_key("right-click-action")
         .get_default_value();
       settings.set_value("right-click-action", defRightClick);
       rightCombo.set_selected(defRightClick.unpack());
-
-      // Right App
       let defRightApp = settings.settings_schema
         .get_key("right-click-app")
         .get_default_value();
+      const defRightAppValue = defRightApp.unpack();
       settings.set_value("right-click-app", defRightApp);
-      rightAppEntry.set_text(defRightApp.unpack());
-
-      // Right Custom Command
+      rightAppEntry.set_text(toDisplayPath(defRightAppValue));
       let defRightCmd = settings.settings_schema
         .get_key("right-custom-command")
         .get_default_value();
       settings.set_value("right-custom-command", defRightCmd);
       rightCmdEntry.set_text(defRightCmd.unpack());
     });
-    actionsGroup.add(restoreButton);
+    restoreDefaultsGroup.add(restoreButton);
   }
 }
