@@ -1,7 +1,7 @@
 {
   "uuid": "top-panel-logo@jmpegi.github.com",
   "name": "Top Panel Logo",
-  "description": "Adds a customizable icon to the GNOME Shell top panel",
+  "description": "Adds a customizable logo to your top panel, letting you personalize your GNOME desktop with the icon of your choice. You can easily pick the icon, adjust its size and position, and customize what happens when you click on it!",
   "shell-version": ["45","46","47","48","49"],
   "settings-schema": "org.gnome.shell.extensions.top-panel-logo",
   "url": "https://github.com/jmpegi/top-panel-logo"

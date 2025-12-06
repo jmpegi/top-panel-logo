@@ -27,7 +27,7 @@ import Meta from "gi://Meta";
 
 // Main extension class
 export default class TopPanelLogoExtension extends Extension {
-  // Updates the status area icon according to settings
+  // Updates the icon's path, size and padding
   _updateIcon() {
     const iconPath = this._settings.get_string("icon-path");
     const iconSize = this._settings.get_int("icon-size");
@@ -80,6 +80,48 @@ export default class TopPanelLogoExtension extends Extension {
     }
   }
 
+  // Updates the button's position and order
+  _updatePosition() {
+    const iconPosition = this._settings.get_string("icon-position");
+    const iconOrder = this._settings.get_int("icon-order");
+
+    if (!this._button) return;
+
+    // Get the target container
+    const targetContainer =
+      iconPosition === "center"
+        ? Main.panel._centerBox
+        : iconPosition === "right"
+        ? Main.panel._rightBox
+        : Main.panel._leftBox;
+
+    const currentParent = this._button.get_parent();
+
+    // Initial add
+    if (!currentParent) {
+      Main.panel.addToStatusArea(
+        this.uuid,
+        this._button,
+        iconOrder,
+        iconPosition
+      );
+      return;
+    }
+
+    // If already in correct container, check order
+    if (currentParent === targetContainer) {
+      const currentIndex = targetContainer.get_children().indexOf(this._button);
+      if (currentIndex !== iconOrder) {
+        targetContainer.set_child_at_index(this._button, iconOrder);
+      }
+      return;
+    }
+
+    // Else, move to correct container
+    currentParent.remove_child(this._button);
+    targetContainer.insert_child_at_index(this._button, iconOrder);
+  }
+
   // Called when extension is enabled by the user
   enable() {
     this._settings = this.getSettings();
@@ -93,11 +135,14 @@ export default class TopPanelLogoExtension extends Extension {
       }
     );
 
-    // Create a panel button
+    // Create button
     this._button = new PanelMenu.Button(0.0, this.metadata.name, false);
 
-    // Draw the current icon
+    // Create icon and add it to button
     this._updateIcon();
+
+    // Add button to panel
+    this._updatePosition();
 
     // Watch for relevant settings changes and update icon when needed
     this._settingsChangedHandlers = [
@@ -106,12 +151,17 @@ export default class TopPanelLogoExtension extends Extension {
       this._settings.connect("changed::horizontal-padding", () =>
         this._updateIcon()
       ),
+      this._settings.connect("changed::icon-position", () =>
+        this._updatePosition()
+      ),
+      this._settings.connect("changed::icon-order", () =>
+        this._updatePosition()
+      ),
     ];
 
     // Handle mouse click events (left/right click)
     this._button.connect("button-press-event", (actor, event) => {
       const button = event.get_button();
-
       if (button === 1) {
         // Left click action
         const leftClickAction = this._settings.get_int("left-click-action");
@@ -121,12 +171,8 @@ export default class TopPanelLogoExtension extends Extension {
         const rightClickAction = this._settings.get_int("right-click-action");
         this._handleClickAction(rightClickAction, "right");
       }
-
       return true; // Prevent further handling
     });
-
-    // Add button to top panel (left side)
-    Main.panel.addToStatusArea(this.uuid, this._button, 0, "left");
   }
 
   // Respond to the mouse click actions as configured in settings

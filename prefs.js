@@ -27,6 +27,8 @@ const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
 
 export default class TopPanelLogoPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
+    window.default_height = 700;
+
     const settings = this.getSettings();
 
     // Unpack settings
@@ -37,6 +39,22 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .get_default_value()
         .unpack() ||
       "/";
+
+    const iconPosition =
+      settings.get_string("icon-position") ||
+      settings.settings_schema
+        .get_key("icon-position")
+        .get_default_value()
+        .unpack() ||
+      "left";
+
+    const iconOrder =
+      settings.get_int("icon-order") ||
+      settings.settings_schema
+        .get_key("icon-order")
+        .get_default_value()
+        .unpack() ||
+      0;
 
     const iconSize =
       settings.get_int("icon-size") ||
@@ -201,8 +219,61 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     iconPathRow.add_suffix(fileChooserButton);
     iconGroup.add(iconPathRow);
 
+    // Icon Position
+    const positionModel = new Gtk.StringList();
+    positionModel.append("Left");
+    positionModel.append("Center");
+    positionModel.append("Right");
+    const positionCombo = new Adw.ComboRow({
+      title: "Icon Position",
+      model: positionModel,
+    });
+    // Set initial selection based on saved value
+    if (iconPosition === "center") {
+      positionCombo.selected = 1;
+    } else if (iconPosition === "right") {
+      positionCombo.selected = 2;
+    } else {
+      positionCombo.selected = 0; // left
+    }
+    positionCombo.connect("notify::selected", () => {
+      let positionValue;
+      switch (positionCombo.selected) {
+        case 1:
+          positionValue = "center";
+          break;
+        case 2:
+          positionValue = "right";
+          break;
+        default:
+          positionValue = "left";
+      }
+      settings.set_string("icon-position", positionValue);
+    });
+    iconGroup.add(positionCombo);
+
+    // Icon Order
+    const iconOrderRow = new Adw.ActionRow({
+      title: "Icon Order",
+    });
+    const iconOrderSpin = new Gtk.SpinButton({
+      adjustment: new Gtk.Adjustment({
+        lower: -1,
+        upper: 9,
+        step_increment: 1,
+      }),
+      numeric: true,
+      tooltip_text: "Order of the icon within panel (0 = leftmost; -1 = auto)",
+    });
+    iconOrderSpin.set_value(iconOrder);
+    iconOrderSpin.connect("value-changed", () =>
+      settings.set_int("icon-order", iconOrderSpin.get_value())
+    );
+    iconOrderRow.add_suffix(iconOrderSpin);
+    iconGroup.add(iconOrderRow);
+
     // Icon Size
-    const iconSizeRow = new Adw.ActionRow({ title: "Icon Size" });
+    const iconSizeRow = new Adw.ActionRow({ title: "Icon Size (px)" });
     const iconSizeSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
         lower: 16,
@@ -219,7 +290,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     iconGroup.add(iconSizeRow);
 
     // Icon Padding
-    const paddingRow = new Adw.ActionRow({ title: "Horizontal Padding" });
+    const paddingRow = new Adw.ActionRow({ title: "Horizontal Padding (px)" });
     const paddingSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
         lower: 0,
@@ -479,43 +550,65 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .get_default_value();
       settings.set_value("icon-path", defIconPath);
       iconPathEntry.set_text(defIconPath.unpack());
+
+      let defIconPosition = settings.settings_schema
+        .get_key("icon-position")
+        .get_default_value();
+      settings.set_value("icon-position", defIconPosition);
+      const defPosition = defIconPosition.unpack();
+      positionCombo.selected =
+        defPosition === "center" ? 1 : defPosition === "right" ? 2 : 0;
+
+      let defIconOrder = settings.settings_schema
+        .get_key("icon-order")
+        .get_default_value();
+      settings.set_value("icon-order", defIconOrder);
+      iconOrderSpin.set_value(defIconOrder.unpack());
+
       let defIconSize = settings.settings_schema
         .get_key("icon-size")
         .get_default_value();
       settings.set_value("icon-size", defIconSize);
       iconSizeSpin.set_value(defIconSize.unpack());
+
       let defPadding = settings.settings_schema
         .get_key("horizontal-padding")
         .get_default_value();
       settings.set_value("horizontal-padding", defPadding);
       paddingSpin.set_value(defPadding.unpack());
+
       let defLeftClick = settings.settings_schema
         .get_key("left-click-action")
         .get_default_value();
       settings.set_value("left-click-action", defLeftClick);
       leftCombo.set_selected(defLeftClick.unpack());
+
       let defLeftApp = settings.settings_schema
         .get_key("left-click-app")
         .get_default_value();
       const defLeftAppValue = defLeftApp.unpack();
       settings.set_value("left-click-app", defLeftApp);
       leftAppEntry.set_text(toDisplayPath(defLeftAppValue));
+
       let defLeftCmd = settings.settings_schema
         .get_key("left-custom-command")
         .get_default_value();
       settings.set_value("left-custom-command", defLeftCmd);
       leftCmdEntry.set_text(defLeftCmd.unpack());
+
       let defRightClick = settings.settings_schema
         .get_key("right-click-action")
         .get_default_value();
       settings.set_value("right-click-action", defRightClick);
       rightCombo.set_selected(defRightClick.unpack());
+
       let defRightApp = settings.settings_schema
         .get_key("right-click-app")
         .get_default_value();
       const defRightAppValue = defRightApp.unpack();
       settings.set_value("right-click-app", defRightApp);
       rightAppEntry.set_text(toDisplayPath(defRightAppValue));
+
       let defRightCmd = settings.settings_schema
         .get_key("right-custom-command")
         .get_default_value();
