@@ -310,7 +310,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     const actions = [
       "Show Overview",
       "Show Apps Grid",
-      "Hide All Windows",
+      "Hide Visible Windows",
       "Open System Monitor",
       "Launch App",
       "Custom Command",

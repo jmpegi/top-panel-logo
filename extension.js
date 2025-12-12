@@ -126,14 +126,8 @@ export default class TopPanelLogoExtension extends Extension {
   enable() {
     this._settings = this.getSettings();
 
-    // Track which windows are hidden for "Hide all windows" functionality
+    // Track which windows are hidden for "Minimize visible windows" functionality
     this._desktopHiddenWindows = [];
-    this._workspaceChangedId = global.workspace_manager.connect(
-      "active-workspace-changed",
-      () => {
-        this._desktopHiddenWindows = [];
-      }
-    );
 
     // Create button
     this._button = new PanelMenu.Button(0.0, this.metadata.name, false);
@@ -190,32 +184,41 @@ export default class TopPanelLogoExtension extends Extension {
         }
         break;
 
-      case 2: // Hide all windows
-        let activeWs = global.workspace_manager.get_active_workspace();
+      case 2: // Minimize visible windows
+        try {
+          let activeWs = global.workspace_manager.get_active_workspace();
+          let wsIndex = activeWs.index();
 
-        // Find normal-type windows (on this WS or sticky windows)
-        let windows = global
-          .get_window_actors()
-          .map((actor) => actor.meta_window)
-          .filter(
-            (mw) =>
-              mw &&
-              mw.get_window_type() === Meta.WindowType.NORMAL &&
-              (mw.get_workspace() === activeWs || mw.is_on_all_workspaces())
-          );
+          // Find regular windows on this WS
+          let windows = global
+            .get_window_actors()
+            .map((actor) => actor.meta_window)
+            .filter(
+              (mw) =>
+                mw &&
+                mw.get_window_type() === Meta.WindowType.NORMAL &&
+                (mw.get_workspace() === activeWs || mw.is_on_all_workspaces())
+            );
 
-        if (windows.length === 0) break;
+          // If there are no windows, do nothing
+          if (windows.length === 0) break;
 
-        if (this._desktopHiddenWindows.length > 0) {
-          // Restore previously hidden windows
-          this._desktopHiddenWindows.forEach((mw) => {
-            if (mw && mw.minimized) mw.unminimize(global.get_current_time());
-          });
-          this._desktopHiddenWindows = [];
-        } else {
-          // Hide all currently visible windows
-          this._desktopHiddenWindows = windows.filter((mw) => !mw.minimized);
-          this._desktopHiddenWindows.forEach((mw) => mw.minimize());
+          const hasVisibleWindows = windows.some((mw) => !mw.minimized);
+          if (hasVisibleWindows) {
+            // If there are visible windows, hide them all
+            const windowsToHide = windows.filter((mw) => !mw.minimized);
+            windowsToHide.forEach((mw) => mw.minimize());
+            // Also track them
+            this._desktopHiddenWindows[wsIndex] = windowsToHide;
+          } else {
+            // Else, restore the windows we previously hid
+            (this._desktopHiddenWindows[wsIndex] || []).forEach((mw) => {
+              if (mw?.minimized) mw.unminimize();
+            });
+            this._desktopHiddenWindows[wsIndex] = [];
+          }
+        } catch (e) {
+          console.error("Failed to minimize windows:", e);
         }
         break;
 

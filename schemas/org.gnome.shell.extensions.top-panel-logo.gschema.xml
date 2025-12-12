@@ -37,7 +37,7 @@
       <description>Action to perform on left click:
         0: Show Overview,
         1: Show Apps Menu,
-        2: Minimize All Windows,
+        2: Minimize Visible Windows,
         3: Open System Monitor,
         4: Launch App,
         5: Custom Command,
@@ -63,7 +63,7 @@
       <description>Action to perform on right click:
         0: Show Overview,
         1: Show Apps Menu,
-        2: Minimize All Windows,
+        2: Minimize Visible Windows,
         3: Open System Monitor,
         4: Launch App,
         5: Custom Command,

@@ -77,7 +77,7 @@ There are 2 ways of installation:
 - To prevent gnome-terminal from automatically closing when running a custom command, use:  
 `gnome-terminal -- bash -c 'yourcommand; wait'` or  
 `gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
-`gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close...'` 
+`gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close..."'` 
 
 ## 📝 License
 
