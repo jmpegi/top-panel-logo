@@ -47,7 +47,14 @@ export default class TopPanelLogoExtension extends Extension {
 
     try {
       const iconFile = Gio.File.new_for_path(resolvedPath);
-      if (iconFile.query_exists(null)) {
+      // If file exists and is not a directory, create the icon
+      if (
+        iconFile.query_exists(null) &&
+        iconFile.query_file_type(
+          Gio.FileQueryInfoFlags.FOLLOW_SYMLINKS,
+          null
+        ) !== Gio.FileType.DIRECTORY
+      ) {
         icon = new St.Icon({
           gicon: new Gio.FileIcon({ file: iconFile }),
           icon_size: iconSize,
@@ -56,7 +63,7 @@ export default class TopPanelLogoExtension extends Extension {
         });
       } else {
         console.log("Icon file not found: " + resolvedPath);
-        // Create a fallback St.Icon with themed icon
+        // Else, create a fallback icon
         icon = new St.Icon({
           gicon: new Gio.ThemedIcon({ name: "image-x-generic" }),
           icon_size: iconSize,
@@ -66,7 +73,7 @@ export default class TopPanelLogoExtension extends Extension {
       }
     } catch (e) {
       console.log("Error loading icon: " + e.message);
-      // Create error fallback icon
+      // Otherwise, create error fallback icon
       icon = new St.Icon({
         gicon: new Gio.ThemedIcon({ name: "image-missing" }),
         icon_size: iconSize,
@@ -189,16 +196,27 @@ export default class TopPanelLogoExtension extends Extension {
           let activeWs = global.workspace_manager.get_active_workspace();
           let wsIndex = activeWs.index();
 
-          // Find regular windows on this WS
+          // Find minimizable regular windows on this WS
           let windows = global
             .get_window_actors()
             .map((actor) => actor.meta_window)
-            .filter(
-              (mw) =>
-                mw &&
-                mw.get_window_type() === Meta.WindowType.NORMAL &&
-                (mw.get_workspace() === activeWs || mw.is_on_all_workspaces())
-            );
+            .filter((mw) => {
+              if (!mw) return false;
+              // Check if window can be minimized (not all can)
+              if (!mw.can_minimize()) return false;
+              // Check if window is on the active workspace
+              const onActiveWorkspace =
+                mw.get_workspace() === activeWs || mw.is_on_all_workspaces();
+              if (!onActiveWorkspace) return false;
+              // Check window type
+              const wtype = mw.get_window_type();
+              return (
+                wtype === Meta.WindowType.NORMAL ||
+                wtype === Meta.WindowType.DIALOG ||
+                wtype === Meta.WindowType.MODAL_DIALOG ||
+                wtype === Meta.WindowType.UTILITY
+              );
+            });
 
           // If there are no windows, do nothing
           if (windows.length === 0) break;
