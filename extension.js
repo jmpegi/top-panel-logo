@@ -33,7 +33,7 @@ export default class TopPanelLogoExtension extends Extension {
     const iconSize = this._settings.get_int("icon-size");
     const horizontalPadding = this._settings.get_int("horizontal-padding");
 
-    this._button.remove_all_children();
+    this._panelButton.remove_all_children();
 
     function resolveIconPath(pathSetting) {
       if (pathSetting.startsWith("~/")) {
@@ -83,7 +83,7 @@ export default class TopPanelLogoExtension extends Extension {
     }
 
     if (icon) {
-      this._button.add_child(icon);
+      this._panelButton.add_child(icon);
     }
   }
 
@@ -92,7 +92,7 @@ export default class TopPanelLogoExtension extends Extension {
     const iconPosition = this._settings.get_string("icon-position");
     const iconOrder = this._settings.get_int("icon-order");
 
-    if (!this._button) return;
+    if (!this._panelButton) return;
 
     // Get the target container
     const targetContainer =
@@ -102,13 +102,13 @@ export default class TopPanelLogoExtension extends Extension {
         ? Main.panel._rightBox
         : Main.panel._leftBox;
 
-    const currentParent = this._button.get_parent();
+    const currentParent = this._panelButton.get_parent();
 
     // Initial add
     if (!currentParent) {
       Main.panel.addToStatusArea(
         this.uuid,
-        this._button,
+        this._panelButton,
         iconOrder,
         iconPosition
       );
@@ -117,27 +117,30 @@ export default class TopPanelLogoExtension extends Extension {
 
     // If already in correct container, check order
     if (currentParent === targetContainer) {
-      const currentIndex = targetContainer.get_children().indexOf(this._button);
+      const currentIndex = targetContainer.get_children().indexOf(this._panelButton);
       if (currentIndex !== iconOrder) {
-        targetContainer.set_child_at_index(this._button, iconOrder);
+        targetContainer.set_child_at_index(this._panelButton, iconOrder);
       }
       return;
     }
 
     // Else, move to correct container
-    currentParent.remove_child(this._button);
-    targetContainer.insert_child_at_index(this._button, iconOrder);
+    currentParent.remove_child(this._panelButton);
+    targetContainer.insert_child_at_index(this._panelButton, iconOrder);
   }
 
   // Called when extension is enabled by the user
   enable() {
     this._settings = this.getSettings();
 
+    // Remember last click time for preventing rapid succesive clicks
+    this._lastClickTimestamp = 0;
+
     // Track which windows are hidden for "Minimize visible windows" functionality
     this._desktopHiddenWindows = [];
 
     // Create button
-    this._button = new PanelMenu.Button(0.0, this.metadata.name, false);
+    this._panelButton = new PanelMenu.Button(0.0, this.metadata.name, false);
 
     // Create icon and add it to button
     this._updateIcon();
@@ -161,7 +164,7 @@ export default class TopPanelLogoExtension extends Extension {
     ];
 
     // Handle mouse click events (left/right click)
-    this._button.connect("button-press-event", (actor, event) => {
+    this._panelButton.connect("button-press-event", (actor, event) => {
       const button = event.get_button();
       if (button === 1) {
         // Left click action
@@ -178,6 +181,14 @@ export default class TopPanelLogoExtension extends Extension {
 
   // Respond to the mouse click actions as configured in settings
   _handleClickAction(action, clickType) {
+    // Prevent rapid successive clicks
+    const currentTimestamp = Date.now();
+    const clickCooldown = this._settings.get_int("click-cooldown");
+    if (currentTimestamp - this._lastClickTimestamp < clickCooldown) {
+      return; // Exit early, ignore this click
+    }
+    this._lastClickTimestamp = currentTimestamp;
+
     switch (action) {
       case 0: // Show overview
         Main.overview.toggle();
@@ -300,8 +311,8 @@ export default class TopPanelLogoExtension extends Extension {
     this._desktopHiddenWindows = [];
 
     // Remove the button from the panel
-    this._button?.destroy();
-    this._button = null;
+    this._panelButton?.destroy();
+    this._panelButton = null;
 
     this._settings = null;
   }

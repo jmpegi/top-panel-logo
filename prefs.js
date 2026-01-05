@@ -72,6 +72,14 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .unpack() ||
       4;
 
+    const cooldownDelay =
+      settings.get_int("click-cooldown") ||
+      settings.settings_schema
+        .get_key("click-cooldown")
+        .get_default_value()
+        .unpack() ||
+      300;
+
     const leftClickAction =
       settings.get_int("left-click-action") ||
       settings.settings_schema
@@ -255,6 +263,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     // Icon Order
     const iconOrderRow = new Adw.ActionRow({
       title: "Icon Order",
+      subtitle: "Order of the icon within the panel",
     });
     const iconOrderSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
@@ -263,7 +272,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         step_increment: 1,
       }),
       numeric: true,
-      tooltip_text: "Order of the icon within panel (0 = leftmost; -1 = auto)",
+      tooltip_text: "(0 = leftmost; -1 = auto)",
+      width_chars: 1
     });
     iconOrderSpin.set_value(iconOrder);
     iconOrderSpin.connect("value-changed", () =>
@@ -281,6 +291,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         step_increment: 1,
       }),
       numeric: true,
+      digits: 0,
+      width_chars: 2,
     });
     iconSizeSpin.set_value(iconSize);
     iconSizeSpin.connect("value-changed", () =>
@@ -298,6 +310,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         step_increment: 1,
       }),
       numeric: true,
+      digits: 0,
+      width_chars: 2,
     });
     paddingSpin.set_value(iconPadding);
     paddingSpin.connect("value-changed", () =>
@@ -305,6 +319,30 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     );
     paddingRow.add_suffix(paddingSpin);
     iconGroup.add(paddingRow);
+
+    // Click Cooldown
+    const cooldownRow = new Adw.ActionRow({
+      title: "Click Cooldown (ms)",
+      subtitle: "Prevents rapid accidental clicks",
+    });
+    const cooldownSpin = new Gtk.SpinButton({
+      adjustment: new Gtk.Adjustment({
+        lower: 0,
+        upper: 5000,
+        step_increment: 50,
+        page_increment: 100,
+      }),
+      numeric: true,
+      tooltip_text: "Minimum delay between click actions (0 = no restriction)",
+      digits: 0,
+      width_chars: 4,
+    });
+    cooldownSpin.set_value(cooldownDelay);
+    cooldownSpin.connect("value-changed", () =>
+      settings.set_int("click-cooldown", cooldownSpin.get_value())
+    );
+    cooldownRow.add_suffix(cooldownSpin);
+    iconGroup.add(cooldownRow);
 
     // === ACTIONS ===
     const actions = [
