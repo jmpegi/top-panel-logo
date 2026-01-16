@@ -41,29 +41,40 @@ export default class TopPanelLogoExtension extends Extension {
       }
       return pathSetting;
     }
-
     const resolvedPath = resolveIconPath(iconPath);
-    let icon = null;
 
+    let icon = null;
     try {
       const iconFile = Gio.File.new_for_path(resolvedPath);
-      // If file exists and is not a directory, create the icon
-      if (
-        iconFile.query_exists(null) &&
-        iconFile.query_file_type(
-          Gio.FileQueryInfoFlags.FOLLOW_SYMLINKS,
-          null
-        ) !== Gio.FileType.DIRECTORY
-      ) {
-        icon = new St.Icon({
-          gicon: new Gio.FileIcon({ file: iconFile }),
-          icon_size: iconSize,
-          style_class: "system-status-icon",
-          style: `padding: 0 ${horizontalPadding}px;`,
-        });
-      } else {
-        console.log("Icon file not found: " + resolvedPath);
-        // Else, create a fallback icon
+
+      if (iconFile.query_exists(null)) {
+        // If the file exists, check if it's a valid image or icon
+        const mimeType = iconFile
+          .query_info(
+            "standard::content-type",
+            Gio.FileQueryInfoFlags.FOLLOW_SYMLINKS,
+            null
+          )
+          .get_content_type();
+
+        if (
+          // If the mime type is valid, create the icon
+          mimeType.startsWith("image/") ||
+          mimeType === "application/x-ico" ||
+          mimeType === "application/ico"
+        ) {
+          icon = new St.Icon({
+            gicon: new Gio.FileIcon({ file: iconFile }),
+            icon_size: iconSize,
+            style_class: "system-status-icon",
+            style: `padding: 0 ${horizontalPadding}px;`,
+          });
+        }
+      }
+
+      if (!icon) {
+        // If the icon was not created, create fallback icon
+        console.log("Icon file not found or invalid: " + resolvedPath);
         icon = new St.Icon({
           gicon: new Gio.ThemedIcon({ name: "image-x-generic" }),
           icon_size: iconSize,
@@ -72,8 +83,8 @@ export default class TopPanelLogoExtension extends Extension {
         });
       }
     } catch (e) {
+      // If any errors, create error fallback icon
       console.log("Error loading icon: " + e.message);
-      // Otherwise, create error fallback icon
       icon = new St.Icon({
         gicon: new Gio.ThemedIcon({ name: "image-missing" }),
         icon_size: iconSize,
@@ -117,7 +128,9 @@ export default class TopPanelLogoExtension extends Extension {
 
     // If already in correct container, check order
     if (currentParent === targetContainer) {
-      const currentIndex = targetContainer.get_children().indexOf(this._panelButton);
+      const currentIndex = targetContainer
+        .get_children()
+        .indexOf(this._panelButton);
       if (currentIndex !== iconOrder) {
         targetContainer.set_child_at_index(this._panelButton, iconOrder);
       }

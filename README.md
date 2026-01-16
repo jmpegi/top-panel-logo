@@ -81,7 +81,7 @@ There are 2 ways of installation:
 
 ## 📝 License
 
-Copyright (C) 2025 jmpegi <jmpegi@protonmail.com>.  
+Copyright (C) 2025-2026 jmpegi <jmpegi@protonmail.com>.  
 Released under GPL‑3.0 — feel free to modify or contribute.
 
 Any feedback, ideas and bug reports are welcome!

@@ -23,7 +23,8 @@ import Gtk from "gi://Gtk";
 import GLib from "gi://GLib";
 import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js";
 
-const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
+// Supported MIME file types for the 'Icon Path' file chooser
+const IMAGE_MIME_TYPES = ["image/*", "application/x-ico", "application/ico"];
 
 export default class TopPanelLogoPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
@@ -273,7 +274,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       }),
       numeric: true,
       tooltip_text: "(0 = leftmost; -1 = auto)",
-      width_chars: 1
+      width_chars: 1,
     });
     iconOrderSpin.set_value(iconOrder);
     iconOrderSpin.connect("value-changed", () =>
