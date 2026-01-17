@@ -117,8 +117,16 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     // === ICON SETTINGS ===
     const iconGroup = new Adw.PreferencesGroup({ title: "Icon Settings" });
     prefsBox.append(iconGroup);
-
-    const iconPathRow = new Adw.ActionRow({ title: "Icon Path" });
+    const iconPathRow = new Adw.ActionRow({
+      title: "Path",
+    });
+    const iconPathInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text: "Supports icon and image MIME file types",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
     const iconPathEntry = new Gtk.Entry({
       text: iconPath,
       hexpand: true,
@@ -205,7 +213,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
                 new Adw.Toast({
                   title: "Icon file does not exist or cannot be accessed",
                   timeout: 3,
-                })
+                }),
               );
             } else {
               // Convert to ~ notation for display
@@ -224,47 +232,61 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       fileChooser.show();
     });
 
+    iconPathRow.add_suffix(iconPathInfoButton);
     iconPathRow.add_suffix(iconPathEntry);
     iconPathRow.add_suffix(fileChooserButton);
     iconGroup.add(iconPathRow);
 
     // Icon Position
-    const positionModel = new Gtk.StringList();
-    positionModel.append("Left");
-    positionModel.append("Center");
-    positionModel.append("Right");
-    const positionCombo = new Adw.ComboRow({
-      title: "Icon Position",
-      model: positionModel,
+    const positionRow = new Adw.ActionRow({
+      title: "Position",
     });
-    // Set initial selection based on saved value
-    if (iconPosition === "center") {
-      positionCombo.selected = 1;
-    } else if (iconPosition === "right") {
-      positionCombo.selected = 2;
-    } else {
-      positionCombo.selected = 0; // left
-    }
-    positionCombo.connect("notify::selected", () => {
-      let positionValue;
-      switch (positionCombo.selected) {
-        case 1:
-          positionValue = "center";
-          break;
-        case 2:
-          positionValue = "right";
-          break;
-        default:
-          positionValue = "left";
-      }
-      settings.set_string("icon-position", positionValue);
+    const segmentedBox = new Gtk.Box({
+      orientation: Gtk.Orientation.HORIZONTAL,
+      css_classes: ["linked"],
+      valign: Gtk.Align.CENTER,
+      halign: Gtk.Align.CENTER,
     });
-    iconGroup.add(positionCombo);
+    const leftButton = new Gtk.ToggleButton({
+      label: "Left",
+      active: iconPosition === "left",
+    });
+    const centerButton = new Gtk.ToggleButton({
+      label: "Center",
+      active: iconPosition === "center",
+    });
+    const rightButton = new Gtk.ToggleButton({
+      label: "Right",
+      active: iconPosition === "right",
+    });
+    centerButton.set_group(leftButton);
+    rightButton.set_group(leftButton);
+    leftButton.connect("toggled", () => {
+      if (leftButton.active) settings.set_string("icon-position", "left");
+    });
+    centerButton.connect("toggled", () => {
+      if (centerButton.active) settings.set_string("icon-position", "center");
+    });
+    rightButton.connect("toggled", () => {
+      if (rightButton.active) settings.set_string("icon-position", "right");
+    });
+    segmentedBox.append(leftButton);
+    segmentedBox.append(centerButton);
+    segmentedBox.append(rightButton);
+    positionRow.add_suffix(segmentedBox);
+    iconGroup.add(positionRow);
 
     // Icon Order
     const iconOrderRow = new Adw.ActionRow({
-      title: "Icon Order",
-      subtitle: "Order of the icon within the panel",
+      title: "Order",
+    });
+    const iconOrderInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text:
+        "Order of the icon within the panel (0 = leftmost)",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
     });
     const iconOrderSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
@@ -273,18 +295,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         step_increment: 1,
       }),
       numeric: true,
-      tooltip_text: "(0 = leftmost; -1 = auto)",
       width_chars: 1,
+      valign: Gtk.Align.CENTER,
+      halign: Gtk.Align.CENTER,
     });
     iconOrderSpin.set_value(iconOrder);
     iconOrderSpin.connect("value-changed", () =>
-      settings.set_int("icon-order", iconOrderSpin.get_value())
+      settings.set_int("icon-order", iconOrderSpin.get_value()),
     );
+    iconOrderRow.add_suffix(iconOrderInfoButton);
     iconOrderRow.add_suffix(iconOrderSpin);
     iconGroup.add(iconOrderRow);
 
     // Icon Size
-    const iconSizeRow = new Adw.ActionRow({ title: "Icon Size (px)" });
+    const iconSizeRow = new Adw.ActionRow({ title: "Size (px)" });
     const iconSizeSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
         lower: 16,
@@ -294,16 +318,18 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       numeric: true,
       digits: 0,
       width_chars: 2,
+      valign: Gtk.Align.CENTER,
+      halign: Gtk.Align.CENTER,
     });
     iconSizeSpin.set_value(iconSize);
     iconSizeSpin.connect("value-changed", () =>
-      settings.set_int("icon-size", iconSizeSpin.get_value())
+      settings.set_int("icon-size", iconSizeSpin.get_value()),
     );
     iconSizeRow.add_suffix(iconSizeSpin);
     iconGroup.add(iconSizeRow);
 
     // Icon Padding
-    const paddingRow = new Adw.ActionRow({ title: "Horizontal Padding (px)" });
+    const paddingRow = new Adw.ActionRow({ title: "Padding (px)" });
     const paddingSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
         lower: 0,
@@ -313,37 +339,15 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       numeric: true,
       digits: 0,
       width_chars: 2,
+      valign: Gtk.Align.CENTER,
+      halign: Gtk.Align.CENTER,
     });
     paddingSpin.set_value(iconPadding);
     paddingSpin.connect("value-changed", () =>
-      settings.set_int("horizontal-padding", paddingSpin.get_value())
+      settings.set_int("horizontal-padding", paddingSpin.get_value()),
     );
     paddingRow.add_suffix(paddingSpin);
     iconGroup.add(paddingRow);
-
-    // Click Cooldown
-    const cooldownRow = new Adw.ActionRow({
-      title: "Click Cooldown (ms)",
-      subtitle: "Prevents rapid accidental clicks",
-    });
-    const cooldownSpin = new Gtk.SpinButton({
-      adjustment: new Gtk.Adjustment({
-        lower: 0,
-        upper: 5000,
-        step_increment: 50,
-        page_increment: 100,
-      }),
-      numeric: true,
-      tooltip_text: "Minimum delay between click actions (0 = no restriction)",
-      digits: 0,
-      width_chars: 4,
-    });
-    cooldownSpin.set_value(cooldownDelay);
-    cooldownSpin.connect("value-changed", () =>
-      settings.set_int("click-cooldown", cooldownSpin.get_value())
-    );
-    cooldownRow.add_suffix(cooldownSpin);
-    iconGroup.add(cooldownRow);
 
     // === ACTIONS ===
     const actions = [
@@ -378,7 +382,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       let clean = execLine.replace(/%[fFuUdDnNickvm]/g, "").trim();
       let parts = clean.split(/\s+/);
       let idx = parts.findIndex(
-        (p) => p.endsWith("flatpak") || p === "flatpak"
+        (p) => p.endsWith("flatpak") || p === "flatpak",
       );
       if (idx === -1 || parts[idx + 1] !== "run") return null;
       for (let i = idx + 2; i < parts.length; i++) {
@@ -394,7 +398,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       key,
       toDisplayPath,
       toAbsolutePath,
-      delay = 500
+      delay = 500,
     ) {
       let AppEntryTimeout = null;
       const applyChange = () => {
@@ -448,7 +452,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
             } catch (e) {
               console.log(
                 "Could not get app id from Gio.DesktopAppInfo, using executable: ",
-                e
+                e,
               );
             }
             settings.set_string(key, cmd);
@@ -459,21 +463,22 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       });
       appChooser.present();
     };
-
-    // === LEFT CLICK ACTIONS ===
-    const leftClickGroup = new Adw.PreferencesGroup({
-      title: "Left Click",
+    // === CLICK ACTIONS GROUP ===
+    const clickActionsGroup = new Adw.PreferencesGroup({
+      title: "Click Actions",
     });
-    prefsBox.append(leftClickGroup);
-    const leftCombo = new Adw.ComboRow({ title: "Left Click Action" });
+    prefsBox.append(clickActionsGroup);
+
+    // === LEFT CLICK ===
+    const leftCombo = new Adw.ComboRow({ title: "Left Click" });
     const leftModel = new Gtk.StringList();
     actions.forEach((a) => leftModel.append(a));
     leftCombo.model = leftModel;
     leftCombo.selected = leftClickAction;
     leftCombo.connect("notify::selected", () =>
-      settings.set_int("left-click-action", leftCombo.get_selected())
+      settings.set_int("left-click-action", leftCombo.get_selected()),
     );
-    leftClickGroup.add(leftCombo);
+    clickActionsGroup.add(leftCombo);
 
     const leftAppRow = new Adw.ActionRow({ title: "App to Launch" });
     const leftAppEntry = new Gtk.Entry({
@@ -488,17 +493,17 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         "left-click-app",
         toDisplayPath,
         toAbsolutePath,
-        500
+        500,
       );
     });
     const leftChooserBtn = new Gtk.Button({ label: "Choose" });
     leftChooserBtn.connect(
       "clicked",
-      makeAppChooserHandler(leftAppEntry, "left-click-app")
+      makeAppChooserHandler(leftAppEntry, "left-click-app"),
     );
     leftAppRow.add_suffix(leftAppEntry);
     leftAppRow.add_suffix(leftChooserBtn);
-    leftClickGroup.add(leftAppRow);
+    clickActionsGroup.add(leftAppRow);
 
     const leftCmdRow = new Adw.ActionRow({ title: "Custom Command" });
     const leftCmdEntry = new Gtk.Entry({
@@ -507,25 +512,21 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       placeholder_text: "Command or script",
     });
     leftCmdEntry.connect("changed", () =>
-      settings.set_string("left-custom-command", leftCmdEntry.get_text())
+      settings.set_string("left-custom-command", leftCmdEntry.get_text()),
     );
     leftCmdRow.add_suffix(leftCmdEntry);
-    leftClickGroup.add(leftCmdRow);
+    clickActionsGroup.add(leftCmdRow);
 
-    // === RIGHT CLICK ACTIONS ===
-    const rightClickGroup = new Adw.PreferencesGroup({
-      title: "Right Click",
-    });
-    prefsBox.append(rightClickGroup);
-    const rightCombo = new Adw.ComboRow({ title: "Right Click Action" });
+    // === RIGHT CLICK ===
+    const rightCombo = new Adw.ComboRow({ title: "Right Click" });
     const rightModel = new Gtk.StringList();
     actions.forEach((a) => rightModel.append(a));
     rightCombo.model = rightModel;
     rightCombo.selected = rightClickAction;
     rightCombo.connect("notify::selected", () =>
-      settings.set_int("right-click-action", rightCombo.get_selected())
+      settings.set_int("right-click-action", rightCombo.get_selected()),
     );
-    rightClickGroup.add(rightCombo);
+    clickActionsGroup.add(rightCombo);
 
     const rightAppRow = new Adw.ActionRow({ title: "App to Launch" });
     const rightAppEntry = new Gtk.Entry({
@@ -540,17 +541,17 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         "right-click-app",
         toDisplayPath,
         toAbsolutePath,
-        500
+        500,
       );
     });
     const rightChooserBtn = new Gtk.Button({ label: "Choose" });
     rightChooserBtn.connect(
       "clicked",
-      makeAppChooserHandler(rightAppEntry, "right-click-app")
+      makeAppChooserHandler(rightAppEntry, "right-click-app"),
     );
     rightAppRow.add_suffix(rightAppEntry);
     rightAppRow.add_suffix(rightChooserBtn);
-    rightClickGroup.add(rightAppRow);
+    clickActionsGroup.add(rightAppRow);
 
     const rightCmdRow = new Adw.ActionRow({ title: "Custom Command" });
     const rightCmdEntry = new Gtk.Entry({
@@ -559,10 +560,10 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       placeholder_text: "Command or script",
     });
     rightCmdEntry.connect("changed", () =>
-      settings.set_string("right-custom-command", rightCmdEntry.get_text())
+      settings.set_string("right-custom-command", rightCmdEntry.get_text()),
     );
     rightCmdRow.add_suffix(rightCmdEntry);
-    rightClickGroup.add(rightCmdRow);
+    clickActionsGroup.add(rightCmdRow);
 
     // Visibility toggle for 'Launch App' and 'Custom Command' rows
     const toggleVis = (combo, rowApp, rowCmd) => {
@@ -571,13 +572,50 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       rowCmd.set_visible(sel === 5);
     };
     leftCombo.connect("notify::selected", () =>
-      toggleVis(leftCombo, leftAppRow, leftCmdRow)
+      toggleVis(leftCombo, leftAppRow, leftCmdRow),
     );
     rightCombo.connect("notify::selected", () =>
-      toggleVis(rightCombo, rightAppRow, rightCmdRow)
+      toggleVis(rightCombo, rightAppRow, rightCmdRow),
     );
     toggleVis(leftCombo, leftAppRow, leftCmdRow);
     toggleVis(rightCombo, rightAppRow, rightCmdRow);
+
+    // Click Cooldown
+    const clickCooldownGroup = new Adw.PreferencesGroup({
+      title: "",
+    });
+    prefsBox.append(clickCooldownGroup);
+    const cooldownRow = new Adw.ActionRow({
+      title: "Click Cooldown (ms)",
+      css_classes: ["spaced-top"],
+    });
+    const cooldownInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text: "Prevents rapid accidental clicks (0 = disable)",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
+    const cooldownSpin = new Gtk.SpinButton({
+      adjustment: new Gtk.Adjustment({
+        lower: 0,
+        upper: 5000,
+        step_increment: 50,
+        page_increment: 100,
+      }),
+      numeric: true,
+      digits: 0,
+      width_chars: 4,
+      valign: Gtk.Align.CENTER,
+      halign: Gtk.Align.CENTER,
+    });
+    cooldownSpin.set_value(cooldownDelay);
+    cooldownSpin.connect("value-changed", () =>
+      settings.set_int("click-cooldown", cooldownSpin.get_value()),
+    );
+    cooldownRow.add_suffix(cooldownInfoButton);
+    cooldownRow.add_suffix(cooldownSpin);
+    clickCooldownGroup.add(cooldownRow);
 
     // === RESTORE DEFAULTS ===
     const restoreDefaultsGroup = new Adw.PreferencesGroup();
@@ -595,32 +633,37 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .get_default_value();
       settings.set_value("icon-position", defIconPosition);
       const defPosition = defIconPosition.unpack();
-      positionCombo.selected =
-        defPosition === "center" ? 1 : defPosition === "right" ? 2 : 0;
+      leftButton.active = defPosition === "left";
+      centerButton.active = defPosition === "center";
+      rightButton.active = defPosition === "right";
 
       let defIconOrder = settings.settings_schema
         .get_key("icon-order")
         .get_default_value();
       settings.set_value("icon-order", defIconOrder);
       iconOrderSpin.set_value(defIconOrder.unpack());
+      iconOrderSpin.emit("value-changed");
 
       let defIconSize = settings.settings_schema
         .get_key("icon-size")
         .get_default_value();
       settings.set_value("icon-size", defIconSize);
       iconSizeSpin.set_value(defIconSize.unpack());
+      iconSizeSpin.emit("value-changed");
 
       let defPadding = settings.settings_schema
         .get_key("horizontal-padding")
         .get_default_value();
       settings.set_value("horizontal-padding", defPadding);
       paddingSpin.set_value(defPadding.unpack());
+      paddingSpin.emit("value-changed");
 
       let defLeftClick = settings.settings_schema
         .get_key("left-click-action")
         .get_default_value();
       settings.set_value("left-click-action", defLeftClick);
       leftCombo.set_selected(defLeftClick.unpack());
+      leftCombo.notify("selected");
 
       let defLeftApp = settings.settings_schema
         .get_key("left-click-app")
@@ -628,18 +671,21 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       const defLeftAppValue = defLeftApp.unpack();
       settings.set_value("left-click-app", defLeftApp);
       leftAppEntry.set_text(toDisplayPath(defLeftAppValue));
+      leftAppEntry.emit("changed");
 
       let defLeftCmd = settings.settings_schema
         .get_key("left-custom-command")
         .get_default_value();
       settings.set_value("left-custom-command", defLeftCmd);
       leftCmdEntry.set_text(defLeftCmd.unpack());
+      leftCmdEntry.emit("changed");
 
       let defRightClick = settings.settings_schema
         .get_key("right-click-action")
         .get_default_value();
       settings.set_value("right-click-action", defRightClick);
       rightCombo.set_selected(defRightClick.unpack());
+      rightCombo.notify("selected");
 
       let defRightApp = settings.settings_schema
         .get_key("right-click-app")
@@ -647,12 +693,21 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       const defRightAppValue = defRightApp.unpack();
       settings.set_value("right-click-app", defRightApp);
       rightAppEntry.set_text(toDisplayPath(defRightAppValue));
+      rightAppEntry.emit("changed");
 
       let defRightCmd = settings.settings_schema
         .get_key("right-custom-command")
         .get_default_value();
       settings.set_value("right-custom-command", defRightCmd);
       rightCmdEntry.set_text(defRightCmd.unpack());
+      rightCmdEntry.emit("changed");
+
+      let defCooldown = settings.settings_schema
+        .get_key("click-cooldown")
+        .get_default_value();
+      settings.set_value("click-cooldown", defCooldown);
+      cooldownSpin.set_value(defCooldown.unpack());
+      cooldownSpin.emit("value-changed");
     });
     restoreDefaultsGroup.add(restoreButton);
   }
