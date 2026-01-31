@@ -8,19 +8,23 @@ Both left‑click and right‑click actions are configurable, allowing for power
 
 ## ✨ What it does
 
-It lets you personalize your GNOME desktop with the icon of your choice. You can easily pick the icon, adjust its size and position, and even customize what happens when you click on it.
+It lets you personalize your GNOME desktop with the icon of your choice. You can easily pick the icon, adjust its size and position, and customize what happens when you click on it!
 
-Designed to be lightweight: no background polling, no unnecessary signals — all actions run instantly on click.
+Designed to be lightweight and efficient: no background polling, no unnecessary signals, no bells and whistles.
+
+![Screenshot](assets/top-panel-logo-prefs.png)
 
 ## 🛠 Available Actions
 
 For either Left Click or Right Click (independently), choose from:
 
+- 'Do Nothing' - Does nothing.
+
 - 'Show Overview' – Opens/closes GNOME Activities Overview.
 
-- 'Show Apps Menu' – Opens/closes GNOME Applications grid view.
+- 'Show Apps Grid' – Opens/closes GNOME Applications Grid view.
 
-- 'Hide All Windows' (Minimize/Restore Windows On Current Workspace) – Matches GNOME's “Hide all normal windows” behavior.
+- 'Hide Visible Windows' – Matches GNOME's “Hide all normal windows” behavior.
 
 - 'Open System Monitor' – Launches gnome-system-monitor if installed.
 
@@ -28,15 +32,17 @@ For either Left Click or Right Click (independently), choose from:
 
 - 'Custom Command' – Run any shell command you define.
 
-- 'Do Nothing' - Does nothing.
-
 ## 🎨 Icon Customization
 
-- 'Icon Path' – Point to any PNG, JPEG, or SVG file to display.
+- 'Path' – Point to any image or icon MIME file type.
 
-- 'Icon Size' – Set the pixel size of your panel icon.
+- 'Position' – Select between left, center and right.
 
-- 'Horizontal Padding' – Adjust space on either side of the icon.
+- 'Order' – Define the order within the panel.
+
+- 'Size' – Set the pixel size of your panel icon.
+
+- 'Padding' – Adjust space on either side of the icon.
 
 ## 🚀 Usage Examples
 
@@ -48,20 +54,19 @@ Left click: Custom Command, Right click: Show Apps Menu.
 
 ## 📋 Requirements
 
-GNOME Shell 46+
+GNOME Shell 45+
 
 For 'Custom Command' or 'Launch App', use valid executable commands.
 
 ## 📦 Installation
 
-There are 2 ways of installation:
+There are several ways of installation:
 
-- From [GNOME Extensions website](https://extensions.gnome.org/extension/8559/top-panel-logo/):  
+- From [GNOME Extensions website](https://extensions.gnome.org/extension/8559/top-panel-logo/):
 
 [![Download from GNOME Extensions website](assets/get_it_on_gnome_extensions.png)](https://extensions.gnome.org/extension/8559/top-panel-logo/)
 
 - From [GitHub](https://github.com/jmpegi/top-panel-logo):
-
   1. Clone this repo to `~/.local/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com`.
   2. Restart GNOME Shell (logout or reboot).
   3. Enable the extension.
@@ -75,9 +80,9 @@ There are 2 ways of installation:
 - For ease of use, disable 'Hot Corner' under 'GNOME Settings/Multitasking'.
 
 - To prevent gnome-terminal from automatically closing when running a custom command, use:  
-`gnome-terminal -- bash -c 'yourcommand; wait'` or  
-`gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
-`gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close..."'` 
+  `gnome-terminal -- bash -c 'yourcommand; wait'` or  
+  `gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
+  `gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close..."'`
 
 ## 📝 License
 

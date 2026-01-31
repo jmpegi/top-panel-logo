@@ -28,7 +28,7 @@ const IMAGE_MIME_TYPES = ["image/*", "application/x-ico", "application/ico"];
 
 export default class TopPanelLogoPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
-    window.default_height = 700;
+    window.default_height = 710;
 
     const settings = this.getSettings();
 
@@ -131,34 +131,58 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: iconPath,
       hexpand: true,
       placeholder_text: "/path/to/icon",
+      valign: Gtk.Align.CENTER,
     });
 
     // Debounce timeout for iconPathEntry
     let iconPathTimeout = null;
-    iconPathEntry.connect("changed", () => {
-      if (iconPathTimeout) {
-        GLib.source_remove(iconPathTimeout);
-        iconPathTimeout = null;
-      }
-      iconPathTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-        const path = iconPathEntry.get_text();
-        settings.set_string("icon-path", path);
-        iconPathTimeout = null;
-        return GLib.SOURCE_REMOVE;
-      });
-    });
-    iconPathEntry.connect("activate", () => {
+    function flushIconPath() {
       if (iconPathTimeout) {
         GLib.source_remove(iconPathTimeout);
         iconPathTimeout = null;
       }
       const path = iconPathEntry.get_text();
-      settings.set_string("icon-path", path);
+      const homeDir = GLib.get_home_dir();
+      const absolutePath =
+        path.startsWith("~/") || path === "~"
+          ? path.replace("~", homeDir)
+          : path;
+      settings.set_string("icon-path", absolutePath);
+      if (toDisplayPath(absolutePath) !== path) {
+        iconPathEntry.set_text(toDisplayPath(absolutePath));
+      }
+    }
+    // Flush on iconPathEntry changes
+    iconPathEntry.connect("changed", () => {
+      if (iconPathTimeout) GLib.source_remove(iconPathTimeout);
+      iconPathTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
+        flushIconPath();
+        return GLib.SOURCE_REMOVE;
+      });
+    });
+    // Also flush on 'Enter' keypress
+    iconPathEntry.connect("activate", flushIconPath);
+    // Also flush on focus-out
+    iconPathEntry.connect("notify::has-focus", (entry) => {
+      if (!entry.get_focus_child()) {
+        flushIconPath();
+      }
+    });
+    // Also flush when closing the window
+    window.connect("close-request", () => {
+      flushIconPath();
+      return false;
     });
 
     // FileChooser for iconPathEntry
     let lastUsedFolder = null;
-    const fileChooserButton = new Gtk.Button({ label: "Browse" });
+    const fileChooserButton = new Gtk.Button({
+      icon_name: "folder-open-symbolic",
+      tooltip_text: "Browse for icon file",
+      has_tooltip: true,
+      css_classes: ["raised"],
+      valign: Gtk.Align.CENTER,
+    });
     fileChooserButton.connect("clicked", () => {
       const fileChooser = new Gtk.FileChooserDialog({
         title: "Select Icon File",
@@ -282,8 +306,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     });
     const iconOrderInfoButton = new Gtk.Button({
       icon_name: "help-about-symbolic",
-      tooltip_text:
-        "Order of the icon within the panel (0 = leftmost)",
+      tooltip_text: "Order of the icon within the panel (0 = leftmost)",
       has_tooltip: true,
       css_classes: ["flat"],
       valign: Gtk.Align.CENTER,
@@ -391,42 +414,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       return fallbackId;
     };
 
-    // Debounce helper for entries to reduce excessive settings writes
-    function setupDebouncedEntry(
-      entry,
-      settings,
-      key,
-      toDisplayPath,
-      toAbsolutePath,
-      delay = 500,
-    ) {
-      let AppEntryTimeout = null;
-      const applyChange = () => {
-        const currentText = entry.get_text();
-        const absolutePath = toAbsolutePath(currentText);
-        settings.set_string(key, absolutePath);
-        const displayText = toDisplayPath(absolutePath);
-        if (displayText !== currentText) {
-          entry.set_text(displayText);
-        }
-      };
-      entry.connect("changed", () => {
-        if (AppEntryTimeout) GLib.source_remove(AppEntryTimeout);
-        AppEntryTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delay, () => {
-          applyChange();
-          AppEntryTimeout = null;
-          return GLib.SOURCE_REMOVE;
-        });
-      });
-      entry.connect("activate", () => {
-        if (AppEntryTimeout) {
-          GLib.source_remove(AppEntryTimeout);
-          AppEntryTimeout = null;
-        }
-        applyChange();
-      });
-    }
-
     // App Chooser logic with Flatpak handling
     const makeAppChooserHandler = (entry, key) => () => {
       const appChooser = new Gtk.AppChooserDialog({
@@ -481,26 +468,32 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     clickActionsGroup.add(leftCombo);
 
     const leftAppRow = new Adw.ActionRow({ title: "App to Launch" });
+    const leftAppRowInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text: "Supports regular apps, Flatpaks, AppImages and .desktop files",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
     const leftAppEntry = new Gtk.Entry({
       text: toDisplayPath(settings.get_string("left-click-app") || ""),
       hexpand: true,
       placeholder_text: "App or executable",
     });
     leftAppEntry.connect("changed", () => {
-      setupDebouncedEntry(
-        leftAppEntry,
-        settings,
-        "left-click-app",
-        toDisplayPath,
-        toAbsolutePath,
-        500,
-      );
+      const displayText = leftAppEntry.get_text();
+      const absolutePath = toAbsolutePath(displayText);
+      settings.set_string("left-click-app", absolutePath);
+      if (toDisplayPath(absolutePath) !== displayText) {
+        leftAppEntry.set_text(toDisplayPath(absolutePath));
+      }
     });
     const leftChooserBtn = new Gtk.Button({ label: "Choose" });
     leftChooserBtn.connect(
       "clicked",
       makeAppChooserHandler(leftAppEntry, "left-click-app"),
     );
+    leftAppRow.add_suffix(leftAppRowInfoButton);
     leftAppRow.add_suffix(leftAppEntry);
     leftAppRow.add_suffix(leftChooserBtn);
     clickActionsGroup.add(leftAppRow);
@@ -529,26 +522,32 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     clickActionsGroup.add(rightCombo);
 
     const rightAppRow = new Adw.ActionRow({ title: "App to Launch" });
+    const rightAppRowInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text: "Supports regular apps, Flatpaks, AppImages and .desktop files",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
     const rightAppEntry = new Gtk.Entry({
       text: toDisplayPath(settings.get_string("right-click-app") || ""),
       hexpand: true,
       placeholder_text: "App or executable",
     });
     rightAppEntry.connect("changed", () => {
-      setupDebouncedEntry(
-        rightAppEntry,
-        settings,
-        "right-click-app",
-        toDisplayPath,
-        toAbsolutePath,
-        500,
-      );
+      const displayText = rightAppEntry.get_text();
+      const absolutePath = toAbsolutePath(displayText);
+      settings.set_string("right-click-app", absolutePath);
+      if (toDisplayPath(absolutePath) !== displayText) {
+        rightAppEntry.set_text(toDisplayPath(absolutePath));
+      }
     });
     const rightChooserBtn = new Gtk.Button({ label: "Choose" });
     rightChooserBtn.connect(
       "clicked",
       makeAppChooserHandler(rightAppEntry, "right-click-app"),
     );
+    rightAppRow.add_suffix(rightAppRowInfoButton);
     rightAppRow.add_suffix(rightAppEntry);
     rightAppRow.add_suffix(rightChooserBtn);
     clickActionsGroup.add(rightAppRow);
@@ -620,8 +619,39 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     // === RESTORE DEFAULTS ===
     const restoreDefaultsGroup = new Adw.PreferencesGroup();
     page.add(restoreDefaultsGroup);
-    const restoreButton = new Gtk.Button({ label: "Restore Defaults" });
+    const restoreButton = new Gtk.Button({
+      label: "Restore Defaults",
+      css_classes: ["destructive-action"],
+      halign: Gtk.Align.CENTER,
+      hexpand: false,
+    });
+
     restoreButton.connect("clicked", () => {
+      // Create confirmation dialog
+      const dialog = new Adw.MessageDialog({
+        transient_for: window,
+        heading: "Restore Defaults",
+        body: "All settings will be restored to their default values. Continue?",
+        close_response: "cancel",
+      });
+      dialog.add_response("cancel", "Cancel");
+      dialog.add_response("restore", "Restore");
+      dialog.set_response_appearance(
+        "restore",
+        Adw.ResponseAppearance.DESTRUCTIVE,
+      );
+      dialog.connect("response", (self, response) => {
+        if (response === "restore") {
+          restoreAllDefaults();
+        }
+      });
+      dialog.present();
+    });
+
+    restoreDefaultsGroup.add(restoreButton);
+
+    // Helper function to restore all defaults
+    const restoreAllDefaults = () => {
       let defIconPath = settings.settings_schema
         .get_key("icon-path")
         .get_default_value();
@@ -671,7 +701,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       const defLeftAppValue = defLeftApp.unpack();
       settings.set_value("left-click-app", defLeftApp);
       leftAppEntry.set_text(toDisplayPath(defLeftAppValue));
-      leftAppEntry.emit("changed");
 
       let defLeftCmd = settings.settings_schema
         .get_key("left-custom-command")
@@ -693,7 +722,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       const defRightAppValue = defRightApp.unpack();
       settings.set_value("right-click-app", defRightApp);
       rightAppEntry.set_text(toDisplayPath(defRightAppValue));
-      rightAppEntry.emit("changed");
 
       let defRightCmd = settings.settings_schema
         .get_key("right-custom-command")
@@ -708,7 +736,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       settings.set_value("click-cooldown", defCooldown);
       cooldownSpin.set_value(defCooldown.unpack());
       cooldownSpin.emit("value-changed");
-    });
-    restoreDefaultsGroup.add(restoreButton);
+    };
   }
 }
