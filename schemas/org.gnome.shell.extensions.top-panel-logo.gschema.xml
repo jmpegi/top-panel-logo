@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <schemalist gettext-domain="gnome-shell-extensions">
   <schema id="org.gnome.shell.extensions.top-panel-logo" path="/org/gnome/shell/extensions/top-panel-logo/">
+  
     <key type="s" name="icon-path">
       <default>'/usr/share/icons/gnome/scalable/places/gnome-foot.svg'</default>
       <summary>Path to the icon</summary>
@@ -47,7 +48,10 @@
         3: Open System Monitor,
         4: Launch App,
         5: Custom Command,
-        6: Do Nothing
+        6: Do Nothing,
+        7: Open Website,
+        8: Open Folder,
+        9: Take Screenshot
       </description>
     </key>
     
@@ -62,7 +66,19 @@
       <summary>Left Click Custom Command</summary>
       <description>Custom command to run on left click</description>
     </key>
-    
+
+    <key type="s" name="left-custom-website">
+      <default>''</default>
+      <summary>Left Click Website</summary>
+      <description>Website URL to open on left click</description>
+    </key>
+
+    <key type="s" name="left-custom-folder">
+      <default>''</default>
+      <summary>Left Click Folder</summary>
+      <description>Folder path to open on left click</description>
+    </key>
+
     <key type="i" name="right-click-action">
       <default>2</default>
       <summary>Right Click Action</summary>
@@ -73,7 +89,10 @@
         3: Open System Monitor,
         4: Launch App,
         5: Custom Command,
-        6: Do Nothing
+        6: Do Nothing,
+        7: Open Website,
+        8: Open Folder,
+        9: Take Screenshot
       </description>
     </key>
     
@@ -88,5 +107,18 @@
       <summary>Right Click Custom Command</summary>
       <description>Custom command to run on right click</description>
     </key>
+
+    <key type="s" name="right-custom-website">
+      <default>''</default>
+      <summary>Right Click Website</summary>
+      <description>Website URL to open on right click</description>
+    </key>
+
+    <key type="s" name="right-custom-folder">
+      <default>''</default>
+      <summary>Right Click Folder</summary>
+      <description>Folder path to open on right click</description>
+    </key>
+
   </schema>
 </schemalist>

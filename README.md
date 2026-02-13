@@ -18,8 +18,6 @@ Designed to be lightweight and efficient: no background polling, no unnecessary 
 
 For either Left Click or Right Click (independently), choose from:
 
-- 'Do Nothing' - Does nothing.
-
 - 'Show Overview' – Opens/closes GNOME Activities Overview.
 
 - 'Show Apps Grid' – Opens/closes GNOME Applications Grid view.
@@ -28,13 +26,15 @@ For either Left Click or Right Click (independently), choose from:
 
 - 'Open System Monitor' – Launches gnome-system-monitor if installed.
 
-- 'Launch App' – Launch a user‑chosen application (with Flatpak and AppImage support).
+- 'Launch App' – Launch a user‑chosen application (with Flatpak, AppImage and .desktop support).
 
 - 'Custom Command' – Run any shell command you define.
 
+- 'Do Nothing' - Does nothing.
+
 ## 🎨 Icon Customization
 
-- 'Path' – Point to any image or icon MIME file type.
+- 'Path' – Point to any image or icon MIME file type (.ico, .png, .svg, .jpeg, .webp, etc).
 
 - 'Position' – Select between left, center and right.
 
@@ -52,12 +52,6 @@ Left click: Launch Terminal, Right click: Open System Monitor.
 
 Left click: Custom Command, Right click: Show Apps Menu.
 
-## 📋 Requirements
-
-GNOME Shell 45+
-
-For 'Custom Command' or 'Launch App', use valid executable commands.
-
 ## 📦 Installation
 
 There are several ways of installation:
@@ -73,16 +67,26 @@ There are several ways of installation:
 
      NOTE: You can also install the extension system-wide by placing it in `/usr/share/gnome-shell/extensions/top-panel-logo@jmpegi.github.com` instead. This is not recommended.
 
+## 📋 Notes
+
+- GNOME Shell 45+ is required.
+
+- 'Launch App' and 'Custom Command' use GLib.spawn_command_line_async(). Keep in mind that:
+  - It spawns a background child process started by GNOME Shell, and as such, it inherits GNOME Shell's environment (which usually comes from ~/.profile, systemd‑user, etc.). This child proccess does NOT use your system's shell environment (from ~/.bashrc or ~/.zshrc).
+  - To use your personalized bash environment (including aliases and custom $PATH), wrap commands with 'bash -ic'. For example:  
+  `bash -ic 'yourcommand'`
+  - Apps usually open their own window, but command-line tools and scripts do not. To run them inside a terminal and keep the window open, you can use:  
+  `gnome-terminal -- bash -c 'yourcommand; wait'` or  
+  `gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
+  `gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close..."'`
+  - For maximum reliability, use full paths to scripts and binaries (e.g., /home/user/bin/yourscript.sh).
+  - Only use valid executable commands that you fully trust.
+
 ## 💡 Tips
 
 - Most GNU/Linux distributions store their logo somewhere inside `/usr/share/pixmaps/` or `/usr/share/icons/`
 
 - For ease of use, disable 'Hot Corner' under 'GNOME Settings/Multitasking'.
-
-- To prevent gnome-terminal from automatically closing when running a custom command, use:  
-  `gnome-terminal -- bash -c 'yourcommand; wait'` or  
-  `gnome-terminal -- bash -c 'yourcommand; exec bash'` or  
-  `gnome-terminal -- bash -c 'yourcommand; read -p "Press ENTER to close..."'`
 
 ## 📝 License
 

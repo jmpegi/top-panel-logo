@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 jmpegi <jmpegi@protonmail.com>
+ * Copyright (C) 2025-2026 jmpegi <jmpegi@protonmail.com>
  *
  * This file is part of Top Panel Logo GNOME Shell Extension.
  *
@@ -53,7 +53,7 @@ export default class TopPanelLogoExtension extends Extension {
           .query_info(
             "standard::content-type",
             Gio.FileQueryInfoFlags.FOLLOW_SYMLINKS,
-            null
+            null,
           )
           .get_content_type();
 
@@ -110,8 +110,8 @@ export default class TopPanelLogoExtension extends Extension {
       iconPosition === "center"
         ? Main.panel._centerBox
         : iconPosition === "right"
-        ? Main.panel._rightBox
-        : Main.panel._leftBox;
+          ? Main.panel._rightBox
+          : Main.panel._leftBox;
 
     const currentParent = this._panelButton.get_parent();
 
@@ -121,7 +121,7 @@ export default class TopPanelLogoExtension extends Extension {
         this.uuid,
         this._panelButton,
         iconOrder,
-        iconPosition
+        iconPosition,
       );
       return;
     }
@@ -166,13 +166,13 @@ export default class TopPanelLogoExtension extends Extension {
       this._settings.connect("changed::icon-path", () => this._updateIcon()),
       this._settings.connect("changed::icon-size", () => this._updateIcon()),
       this._settings.connect("changed::horizontal-padding", () =>
-        this._updateIcon()
+        this._updateIcon(),
       ),
       this._settings.connect("changed::icon-position", () =>
-        this._updatePosition()
+        this._updatePosition(),
       ),
       this._settings.connect("changed::icon-order", () =>
-        this._updatePosition()
+        this._updatePosition(),
       ),
     ];
 
@@ -215,7 +215,7 @@ export default class TopPanelLogoExtension extends Extension {
         }
         break;
 
-      case 2: // Minimize visible windows
+      case 2: // Hide visible windows
         try {
           let activeWs = global.workspace_manager.get_active_workspace();
           let wsIndex = activeWs.index();
@@ -249,18 +249,28 @@ export default class TopPanelLogoExtension extends Extension {
           if (hasVisibleWindows) {
             // If there are visible windows, hide them all
             const windowsToHide = windows.filter((mw) => !mw.minimized);
-            windowsToHide.forEach((mw) => mw.minimize());
+            windowsToHide.forEach((mw) => {
+              try {
+                mw.minimize();
+              } catch (e) {
+                console.error("Failed to minimize window:", e);
+              }
+            });
             // Also track them
             this._desktopHiddenWindows[wsIndex] = windowsToHide;
           } else {
             // Else, restore the windows we previously hid
             (this._desktopHiddenWindows[wsIndex] || []).forEach((mw) => {
-              if (mw?.minimized) mw.unminimize();
+              try {
+                if (mw?.minimized) mw.unminimize();
+              } catch (e) {
+                console.error("Failed to unminimize window:", e);
+              }
             });
             this._desktopHiddenWindows[wsIndex] = [];
           }
         } catch (e) {
-          console.error("Failed to minimize windows:", e);
+          console.error("Failed to hide/show visible windows:", e);
         }
         break;
 
@@ -275,11 +285,16 @@ export default class TopPanelLogoExtension extends Extension {
       case 4: // Launch app
         try {
           const appCommand = this._settings.get_string(
-            clickType === "left" ? "left-click-app" : "right-click-app"
+            clickType === "left" ? "left-click-app" : "right-click-app",
           );
-          if (appCommand) {
-            GLib.spawn_command_line_async(appCommand);
+          if (!appCommand || appCommand === "") {
+            Main.notify(
+              "Top Panel Logo",
+              "Please set an App to Launch in the extension preferences",
+            );
+            return;
           }
+          GLib.spawn_command_line_async(appCommand);
         } catch (e) {
           console.error(`Failed to launch app on ${clickType} click:`, e);
         }
@@ -290,20 +305,95 @@ export default class TopPanelLogoExtension extends Extension {
           const customCommand = this._settings.get_string(
             clickType === "left"
               ? "left-custom-command"
-              : "right-custom-command"
+              : "right-custom-command",
           );
-          if (customCommand) {
-            GLib.spawn_command_line_async(customCommand);
+          if (!customCommand || customCommand === "") {
+            Main.notify(
+              "Top Panel Logo",
+              "Please set a Custom Command in the extension preferences",
+            );
+            break;
+          }
+          console.log(`Running custom command: ${customCommand}`);
+          const success = GLib.spawn_command_line_async(customCommand);
+          if (!success) {
+            console.error(`Failed to spawn custom command: ${customCommand}`);
           }
         } catch (e) {
           console.error(
             `Failed to run custom command on ${clickType} click:`,
-            e
+            e,
           );
         }
         break;
 
       case 6: //Do nothing
+        break;
+
+      case 7: // Visit custom website
+        try {
+          let url = this._settings.get_string(
+            clickType === "left"
+              ? "left-custom-website"
+              : "right-custom-website",
+          );
+
+          if (!url || url.trim() === "") {
+            console.log("No website URL configured");
+            Main.notify(
+              "Top Panel Logo",
+              "Please set a Website URL in the extension preferences",
+            );
+            return;
+          }
+          let appInfo = Gio.AppInfo.get_default_for_type("text/html", false);
+          if (appInfo) {
+            appInfo.launch_uris([url], null, null);
+          } else {
+            // Fallback to xdg-open
+            GLib.spawn_command_line_async(`xdg-open "${url}"`);
+          }
+        } catch (e) {
+          console.error(`Error opening website: ${e}`);
+        }
+        break;
+
+      case 8: // Open custom folder
+        try {
+          let pathStr = this._settings.get_string(
+            clickType === "left" ? "left-custom-folder" : "right-custom-folder",
+          );
+          const homeDir = GLib.get_home_dir();
+          if (!pathStr || pathStr.trim() === "") {
+            pathStr = homeDir;
+          }
+          const absolutePath =
+            pathStr.startsWith("~/") || pathStr === "~"
+              ? pathStr.replace("~", homeDir)
+              : pathStr;
+          let file = Gio.File.new_for_path(absolutePath);
+          if (!file.query_exists(null)) {
+            console.log(
+              `Folder does not exist: ${absolutePath}, falling back to home`,
+            );
+            Main.notify(
+              "Top Panel Logo",
+              `Folder does not exist, opening home directory instead`,
+            );
+            file = Gio.File.new_for_path(homeDir);
+          }
+          let appInfo = Gio.AppInfo.get_default_for_type(
+            "inode/directory",
+            false,
+          );
+          if (appInfo) {
+            appInfo.launch([file], null); // ← only 2 args
+          } else {
+            GLib.spawn_command_line_async(`xdg-open "${homeDir}"`);
+          }
+        } catch (e) {
+          console.error(`Error opening folder: ${e}`);
+        }
         break;
     }
   }
@@ -312,7 +402,7 @@ export default class TopPanelLogoExtension extends Extension {
   disable() {
     if (this._settingsChangedHandlers) {
       this._settingsChangedHandlers.forEach((handler) =>
-        this._settings.disconnect(handler)
+        this._settings.disconnect(handler),
       );
       this._settingsChangedHandlers = null;
     }

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2025 jmpegi <jmpegi@protonmail.com>
+ * Copyright (C) 2025-2026 jmpegi <jmpegi@protonmail.com>
  *
  * This file is part of Top Panel Logo GNOME Shell Extension.
  *
@@ -127,6 +127,11 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       css_classes: ["flat"],
       valign: Gtk.Align.CENTER,
     });
+    // Keep tooltip visible when button is clicked
+    iconPathInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
+    });
     const iconPathEntry = new Gtk.Entry({
       text: iconPath,
       hexpand: true,
@@ -143,10 +148,9 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       }
       const path = iconPathEntry.get_text();
       const homeDir = GLib.get_home_dir();
-      const absolutePath =
-        path.startsWith("~/") || path === "~"
-          ? path.replace("~", homeDir)
-          : path;
+      const absolutePath = path.startsWith("~")
+        ? path.replace("~", homeDir)
+        : path;
       settings.set_string("icon-path", absolutePath);
       if (toDisplayPath(absolutePath) !== path) {
         iconPathEntry.set_text(toDisplayPath(absolutePath));
@@ -164,10 +168,12 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     iconPathEntry.connect("activate", flushIconPath);
     // Also flush on focus-out
     iconPathEntry.connect("notify::has-focus", (entry) => {
-      if (!entry.get_focus_child()) {
+      if (!entry.has_focus()) {
         flushIconPath();
       }
     });
+    // Also flush when the window appears
+    iconPathEntry.connect("map", flushIconPath);
     // Also flush when closing the window
     window.connect("close-request", () => {
       flushIconPath();
@@ -311,6 +317,11 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       css_classes: ["flat"],
       valign: Gtk.Align.CENTER,
     });
+    // Keep tooltip visible when button is clicked
+    iconOrderInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
+    });
     const iconOrderSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
         lower: -1,
@@ -381,6 +392,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       "Launch App",
       "Custom Command",
       "Do Nothing",
+      "Open Website",
+      "Open Folder",
     ];
 
     // Display/Absolute path helper functions
@@ -467,13 +480,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     );
     clickActionsGroup.add(leftCombo);
 
+    // Left app
     const leftAppRow = new Adw.ActionRow({ title: "App to Launch" });
     const leftAppRowInfoButton = new Gtk.Button({
       icon_name: "help-about-symbolic",
-      tooltip_text: "Supports regular apps, Flatpaks, AppImages and .desktop files",
+      tooltip_text:
+        "Supports regular apps, Flatpaks, AppImages and .desktop files",
       has_tooltip: true,
       css_classes: ["flat"],
       valign: Gtk.Align.CENTER,
+    });
+    // Keep tooltip visible when button is clicked
+    leftAppRowInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
     });
     const leftAppEntry = new Gtk.Entry({
       text: toDisplayPath(settings.get_string("left-click-app") || ""),
@@ -498,7 +518,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     leftAppRow.add_suffix(leftChooserBtn);
     clickActionsGroup.add(leftAppRow);
 
+    // Left custom command
     const leftCmdRow = new Adw.ActionRow({ title: "Custom Command" });
+    const leftCmdRowInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text: "Only use this if you know what you are doing! See README",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
+    // Keep tooltip visible when button is clicked
+    leftCmdRowInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
+    });
     const leftCmdEntry = new Gtk.Entry({
       text: settings.get_string("left-custom-command"),
       hexpand: true,
@@ -507,8 +540,42 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     leftCmdEntry.connect("changed", () =>
       settings.set_string("left-custom-command", leftCmdEntry.get_text()),
     );
+    leftCmdRow.add_suffix(leftCmdRowInfoButton);
     leftCmdRow.add_suffix(leftCmdEntry);
     clickActionsGroup.add(leftCmdRow);
+
+    // Left website
+    const leftWebsiteRow = new Adw.ActionRow({ title: "Website URL" });
+    const leftWebsiteEntry = new Gtk.Entry({
+      text: settings.get_string("left-custom-website") || "",
+      hexpand: true,
+      placeholder_text: "www.example.com",
+    });
+    leftWebsiteEntry.connect("changed", () =>
+      settings.set_string("left-custom-website", leftWebsiteEntry.get_text()),
+    );
+    leftWebsiteRow.add_suffix(leftWebsiteEntry);
+    clickActionsGroup.add(leftWebsiteRow);
+
+    // Left folder
+    // === LEFT FOLDER (matching icon-path behavior) ===
+    const leftFolderRow = new Adw.ActionRow({ title: "Folder Path" });
+    const leftFolderEntry = new Gtk.Entry({
+      text: toDisplayPath(settings.get_string("left-custom-folder") || ""),
+      hexpand: true,
+      placeholder_text: "~/",
+    });
+    leftFolderEntry.connect("changed", () => {
+      const text = leftFolderEntry.get_text();
+      const homeDir = GLib.get_home_dir();
+      const absolutePath =
+        text.startsWith("~/") || text === "~"
+          ? text.replace("~", homeDir)
+          : text;
+      settings.set_string("left-custom-folder", absolutePath);
+    });
+    leftFolderRow.add_suffix(leftFolderEntry);
+    clickActionsGroup.add(leftFolderRow);
 
     // === RIGHT CLICK ===
     const rightCombo = new Adw.ComboRow({ title: "Right Click" });
@@ -521,13 +588,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     );
     clickActionsGroup.add(rightCombo);
 
+    // Right app
     const rightAppRow = new Adw.ActionRow({ title: "App to Launch" });
     const rightAppRowInfoButton = new Gtk.Button({
       icon_name: "help-about-symbolic",
-      tooltip_text: "Supports regular apps, Flatpaks, AppImages and .desktop files",
+      tooltip_text:
+        "Supports regular apps, Flatpaks, AppImages and .desktop files",
       has_tooltip: true,
       css_classes: ["flat"],
       valign: Gtk.Align.CENTER,
+    });
+    // Keep tooltip visible when button is clicked
+    rightAppRowInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
     });
     const rightAppEntry = new Gtk.Entry({
       text: toDisplayPath(settings.get_string("right-click-app") || ""),
@@ -552,7 +626,20 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     rightAppRow.add_suffix(rightChooserBtn);
     clickActionsGroup.add(rightAppRow);
 
+    // Right custom command
     const rightCmdRow = new Adw.ActionRow({ title: "Custom Command" });
+    const rightCmdRowInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text: "Only use this if you know what you are doing! See README",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
+    // Keep tooltip visible when button is clicked
+    rightCmdRowInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
+    });
     const rightCmdEntry = new Gtk.Entry({
       text: settings.get_string("right-custom-command"),
       hexpand: true,
@@ -561,23 +648,78 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     rightCmdEntry.connect("changed", () =>
       settings.set_string("right-custom-command", rightCmdEntry.get_text()),
     );
+    rightCmdRow.add_suffix(rightCmdRowInfoButton);
     rightCmdRow.add_suffix(rightCmdEntry);
     clickActionsGroup.add(rightCmdRow);
 
-    // Visibility toggle for 'Launch App' and 'Custom Command' rows
-    const toggleVis = (combo, rowApp, rowCmd) => {
+    // Right website
+    const rightWebsiteRow = new Adw.ActionRow({ title: "Website URL" });
+    const rightWebsiteEntry = new Gtk.Entry({
+      text: settings.get_string("right-custom-website") || "",
+      hexpand: true,
+      placeholder_text: "www.example.com",
+    });
+    rightWebsiteEntry.connect("changed", () =>
+      settings.set_string("right-custom-website", rightWebsiteEntry.get_text()),
+    );
+    rightWebsiteRow.add_suffix(rightWebsiteEntry);
+    clickActionsGroup.add(rightWebsiteRow);
+
+    // Right folder
+    const rightFolderRow = new Adw.ActionRow({ title: "Folder Path" });
+    const rightFolderEntry = new Gtk.Entry({
+      text: toDisplayPath(settings.get_string("right-custom-folder") || ""),
+      hexpand: true,
+      placeholder_text: "~/",
+    });
+    rightFolderEntry.connect("changed", () => {
+      const text = rightFolderEntry.get_text();
+      const homeDir = GLib.get_home_dir();
+      const absolutePath =
+        text.startsWith("~/") || text === "~"
+          ? text.replace("~", homeDir)
+          : text;
+      settings.set_string("right-custom-folder", absolutePath);
+    });
+    rightFolderRow.add_suffix(rightFolderEntry);
+    clickActionsGroup.add(rightFolderRow);
+
+    // Visibility toggle for preferences rows
+    const toggleVis = (combo, rowApp, rowCmd, rowWebsite, rowFolder) => {
       const sel = combo.get_selected();
       rowApp.set_visible(sel === 4);
       rowCmd.set_visible(sel === 5);
+      rowWebsite.set_visible(sel === 7);
+      rowFolder.set_visible(sel === 8);
     };
+
     leftCombo.connect("notify::selected", () =>
-      toggleVis(leftCombo, leftAppRow, leftCmdRow),
+      toggleVis(
+        leftCombo,
+        leftAppRow,
+        leftCmdRow,
+        leftWebsiteRow,
+        leftFolderRow,
+      ),
     );
     rightCombo.connect("notify::selected", () =>
-      toggleVis(rightCombo, rightAppRow, rightCmdRow),
+      toggleVis(
+        rightCombo,
+        rightAppRow,
+        rightCmdRow,
+        rightWebsiteRow,
+        rightFolderRow,
+      ),
     );
-    toggleVis(leftCombo, leftAppRow, leftCmdRow);
-    toggleVis(rightCombo, rightAppRow, rightCmdRow);
+
+    toggleVis(leftCombo, leftAppRow, leftCmdRow, leftWebsiteRow, leftFolderRow);
+    toggleVis(
+      rightCombo,
+      rightAppRow,
+      rightCmdRow,
+      rightWebsiteRow,
+      rightFolderRow,
+    );
 
     // Click Cooldown
     const clickCooldownGroup = new Adw.PreferencesGroup({
@@ -594,6 +736,11 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       has_tooltip: true,
       css_classes: ["flat"],
       valign: Gtk.Align.CENTER,
+    });
+    // Keep tooltip visible when button is clicked
+    cooldownInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true; // Stop event propagation
     });
     const cooldownSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
