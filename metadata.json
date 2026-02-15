@@ -1,7 +1,7 @@
 {
   "uuid": "top-panel-logo@jmpegi.github.com",
   "name": "Top Panel Logo",
-  "description": "Adds a customizable button to your top panel, letting you personalize your GNOME desktop with the icon of your choice. Set your preferred icon, adjust its size and position, and decide what happens when you click it!\nChoose from:\n- Do Nothing\n- Show Overview\n- Show Apps Grid\n- Hide Visible Windows\n- Open System Monitor\n- Launch App\n- Custom Command",
+  "description": "Adds a customizable button to your top panel, letting you personalize your GNOME desktop with the icon of your choice. Set your preferred icon, adjust its size and position, and decide what happens when you click it!\nChoose from:\n- Do Nothing\n- Show Overview\n- Show Apps Grid\n- Hide Visible Windows\n- Open System Monitor\n- Launch App\n- Custom Command\n- Open Website\n- Open Folder",
   "shell-version": ["45", "46", "47", "48", "49"],
   "settings-schema": "org.gnome.shell.extensions.top-panel-logo",
   "url": "https://github.com/jmpegi/top-panel-logo"

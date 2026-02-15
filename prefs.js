@@ -168,7 +168,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     iconPathEntry.connect("activate", flushIconPath);
     // Also flush on focus-out
     iconPathEntry.connect("notify::has-focus", (entry) => {
-      if (!entry.has_focus()) {
+      if (!entry.has_focus) {
         flushIconPath();
       }
     });

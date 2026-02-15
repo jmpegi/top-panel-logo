@@ -50,8 +50,7 @@
         5: Custom Command,
         6: Do Nothing,
         7: Open Website,
-        8: Open Folder,
-        9: Take Screenshot
+        8: Open Folder
       </description>
     </key>
     
@@ -91,8 +90,7 @@
         5: Custom Command,
         6: Do Nothing,
         7: Open Website,
-        8: Open Folder,
-        9: Take Screenshot
+        8: Open Folder
       </description>
     </key>
     

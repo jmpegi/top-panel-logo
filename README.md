@@ -18,6 +18,8 @@ Designed to be lightweight and efficient: no background polling, no unnecessary 
 
 For either Left Click or Right Click (independently), choose from:
 
+- 'Do Nothing' - Does nothing.
+
 - 'Show Overview' – Opens/closes GNOME Activities Overview.
 
 - 'Show Apps Grid' – Opens/closes GNOME Applications Grid view.
@@ -30,7 +32,9 @@ For either Left Click or Right Click (independently), choose from:
 
 - 'Custom Command' – Run any shell command you define.
 
-- 'Do Nothing' - Does nothing.
+- 'Open Website' - Opens a specified website.
+
+- 'Open Folder' - Opens a specified folder.
 
 ## 🎨 Icon Customization
 
@@ -46,7 +50,7 @@ For either Left Click or Right Click (independently), choose from:
 
 ## 🚀 Usage Examples
 
-Left click: Show Overview, Right click: Hide All Windows.
+Left click: Show Overview, Right click: Hide Visible Windows.
 
 Left click: Launch Terminal, Right click: Open System Monitor.
 

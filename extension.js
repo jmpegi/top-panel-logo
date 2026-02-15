@@ -250,22 +250,14 @@ export default class TopPanelLogoExtension extends Extension {
             // If there are visible windows, hide them all
             const windowsToHide = windows.filter((mw) => !mw.minimized);
             windowsToHide.forEach((mw) => {
-              try {
-                mw.minimize();
-              } catch (e) {
-                console.error("Failed to minimize window:", e);
-              }
+              mw.minimize();
             });
             // Also track them
             this._desktopHiddenWindows[wsIndex] = windowsToHide;
           } else {
             // Else, restore the windows we previously hid
             (this._desktopHiddenWindows[wsIndex] || []).forEach((mw) => {
-              try {
-                if (mw?.minimized) mw.unminimize();
-              } catch (e) {
-                console.error("Failed to unminimize window:", e);
-              }
+              if (mw?.minimized) mw.unminimize();
             });
             this._desktopHiddenWindows[wsIndex] = [];
           }
@@ -279,6 +271,10 @@ export default class TopPanelLogoExtension extends Extension {
           GLib.spawn_command_line_async("gnome-system-monitor");
         } catch (e) {
           console.error("Failed to launch system monitor:", e);
+          Main.notifyError(
+            "Top Panel Logo",
+            `Failed to Launch System Monitor: ${e.message}`,
+          );
         }
         break;
 
@@ -297,6 +293,10 @@ export default class TopPanelLogoExtension extends Extension {
           GLib.spawn_command_line_async(appCommand);
         } catch (e) {
           console.error(`Failed to launch app on ${clickType} click:`, e);
+          Main.notifyError(
+            "Top Panel Logo",
+            `Failed to Launch App: ${e.message}`,
+          );
         }
         break;
 
@@ -315,19 +315,20 @@ export default class TopPanelLogoExtension extends Extension {
             break;
           }
           console.log(`Running custom command: ${customCommand}`);
-          const success = GLib.spawn_command_line_async(customCommand);
-          if (!success) {
-            console.error(`Failed to spawn custom command: ${customCommand}`);
-          }
+          GLib.spawn_command_line_async(customCommand);
         } catch (e) {
           console.error(
             `Failed to run custom command on ${clickType} click:`,
             e,
           );
+          Main.notifyError(
+            "Top Panel Logo",
+            `Failed to run Custom Command: ${e.message}`,
+          );
         }
         break;
 
-      case 6: //Do nothing
+      case 6: // Do nothing
         break;
 
       case 7: // Visit custom website
@@ -337,9 +338,8 @@ export default class TopPanelLogoExtension extends Extension {
               ? "left-custom-website"
               : "right-custom-website",
           );
-
           if (!url || url.trim() === "") {
-            console.log("No website URL configured");
+            console.log("No Website URL configured");
             Main.notify(
               "Top Panel Logo",
               "Please set a Website URL in the extension preferences",
@@ -350,11 +350,12 @@ export default class TopPanelLogoExtension extends Extension {
           if (appInfo) {
             appInfo.launch_uris([url], null, null);
           } else {
-            // Fallback to xdg-open
-            GLib.spawn_command_line_async(`xdg-open "${url}"`);
+            console.error("No default web browser found");
+            Main.notify("Top Panel Logo", "No default web browser found");
           }
         } catch (e) {
-          console.error(`Error opening website: ${e}`);
+          console.error("Failed to Open Website:", e);
+          Main.notifyError("Top Panel Logo", `Failed to Open Website: ${e.message}`);
         }
         break;
 
@@ -387,12 +388,14 @@ export default class TopPanelLogoExtension extends Extension {
             false,
           );
           if (appInfo) {
-            appInfo.launch([file], null); // ← only 2 args
+            appInfo.launch([file], null);
           } else {
-            GLib.spawn_command_line_async(`xdg-open "${homeDir}"`);
+            console.error("No default file manager found");
+            Main.notify("Top Panel Logo", "No default file manager found");
           }
         } catch (e) {
-          console.error(`Error opening folder: ${e}`);
+          console.error("Failed to Open Folder:", e);
+          Main.notifyError("Top Panel Logo", `Failed to Open Folder: ${e.message}`);
         }
         break;
     }
