@@ -24,6 +24,7 @@ import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
 import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import Meta from "gi://Meta";
+import Clutter from 'gi://Clutter';
 
 // Main extension class
 export default class TopPanelLogoExtension extends Extension {
@@ -153,7 +154,7 @@ export default class TopPanelLogoExtension extends Extension {
     this._desktopHiddenWindows = [];
 
     // Create button
-    this._panelButton = new PanelMenu.Button(0.0, this.metadata.name, false);
+    this._panelButton = new PanelMenu.Button(0.0, this.metadata.name, true);
 
     // Create icon and add it to button
     this._updateIcon();
@@ -179,11 +180,11 @@ export default class TopPanelLogoExtension extends Extension {
     // Handle mouse click events (left/right click)
     this._panelButton.connect("button-press-event", (actor, event) => {
       const button = event.get_button();
-      if (button === 1) {
+      if (button === Clutter.BUTTON_PRIMARY) {
         // Left click action
         const leftClickAction = this._settings.get_int("left-click-action");
         this._handleClickAction(leftClickAction, "left");
-      } else if (button === 3) {
+      } else if (button === Clutter.BUTTON_SECONDARY) {
         // Right click action
         const rightClickAction = this._settings.get_int("right-click-action");
         this._handleClickAction(rightClickAction, "right");
