@@ -183,7 +183,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     // FileChooser for iconPathEntry
     let lastUsedFolder = null;
     const fileChooserButton = new Gtk.Button({
-      icon_name: "folder-open-symbolic",
+      icon_name: "document-open-symbolic",
       tooltip_text: "Browse for icon file",
       has_tooltip: true,
       css_classes: ["raised"],
@@ -427,17 +427,22 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       return fallbackId;
     };
 
-    // App Chooser logic with Flatpak handling
+    // App Chooser dialog with Flatpak handling
     const makeAppChooserHandler = (entry, key) => () => {
       const appChooser = new Gtk.AppChooserDialog({
-        content_type: "application/x-desktop",
         transient_for: window,
+        modal: true,
+      });
+      const widget = appChooser.get_widget();
+      widget.set({
+        show_all: true,
+        show_other: true,
       });
       appChooser.set_resizable(true);
       appChooser.set_default_size(600, 400);
       appChooser.connect("response", (dlg, resp) => {
         if (resp === Gtk.ResponseType.OK) {
-          const appInfo = dlg.get_app_info();
+          const appInfo = widget.get_app_info();
           if (appInfo) {
             let cmd = appInfo.get_executable();
             try {
@@ -459,10 +464,44 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
             entry.set_text(toDisplayPath(cmd));
           }
         }
-        dlg.close();
+        dlg.destroy();
       });
-      appChooser.present();
+      appChooser.show();
     };
+
+    // Folder Chooser dialog
+    const makeFolderChooserHandler = (entry, key) => () => {
+      const chooser = new Gtk.FileChooserDialog({
+        title: "Select Folder",
+        transient_for: window,
+        modal: true,
+      });
+      chooser.set_action(Gtk.FileChooserAction.SELECT_FOLDER);
+      chooser.add_button("_Cancel", Gtk.ResponseType.CANCEL);
+      chooser.add_button("_Select", Gtk.ResponseType.OK);
+      const current = settings.get_string(key) || GLib.get_home_dir();
+      try {
+        const file = Gio.File.new_for_path(current);
+        chooser.set_current_folder(file);
+      } catch (e) {
+        console.log("Could not set initial folder:", e);
+      }
+      chooser.connect("response", (dlg, resp) => {
+        if (resp === Gtk.ResponseType.OK) {
+          const folder = chooser.get_file();
+          if (folder) {
+            const path = folder.get_path();
+            if (path) {
+              settings.set_string(key, path);
+              entry.set_text(toDisplayPath(path));
+            }
+          }
+        }
+        dlg.destroy();
+      });
+      chooser.present();
+    };
+
     // === CLICK ACTIONS GROUP ===
     const clickActionsGroup = new Adw.PreferencesGroup({
       title: "Click Actions",
@@ -499,6 +538,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: toDisplayPath(settings.get_string("left-click-app") || ""),
       hexpand: true,
       placeholder_text: "App or executable",
+      valign: Gtk.Align.CENTER,
     });
     leftAppEntry.connect("changed", () => {
       const displayText = leftAppEntry.get_text();
@@ -508,7 +548,10 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         leftAppEntry.set_text(toDisplayPath(absolutePath));
       }
     });
-    const leftChooserBtn = new Gtk.Button({ label: "Choose" });
+    const leftChooserBtn = new Gtk.Button({
+      label: "Choose",
+      valign: Gtk.Align.CENTER,
+    });
     leftChooserBtn.connect(
       "clicked",
       makeAppChooserHandler(leftAppEntry, "left-click-app"),
@@ -536,6 +579,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: settings.get_string("left-custom-command"),
       hexpand: true,
       placeholder_text: "Command or script",
+      valign: Gtk.Align.CENTER,
     });
     leftCmdEntry.connect("changed", () =>
       settings.set_string("left-custom-command", leftCmdEntry.get_text()),
@@ -550,6 +594,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: settings.get_string("left-custom-website") || "",
       hexpand: true,
       placeholder_text: "www.example.com",
+      valign: Gtk.Align.CENTER,
     });
     leftWebsiteEntry.connect("changed", () =>
       settings.set_string("left-custom-website", leftWebsiteEntry.get_text()),
@@ -564,6 +609,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: toDisplayPath(settings.get_string("left-custom-folder") || ""),
       hexpand: true,
       placeholder_text: "~/",
+      valign: Gtk.Align.CENTER,
     });
     leftFolderEntry.connect("changed", () => {
       const text = leftFolderEntry.get_text();
@@ -575,6 +621,18 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       settings.set_string("left-custom-folder", absolutePath);
     });
     leftFolderRow.add_suffix(leftFolderEntry);
+    const leftFolderButton = new Gtk.Button({
+      icon_name: "folder-open-symbolic",
+      has_tooltip: true,
+      tooltip_text: "Browse for folder",
+      css_classes: ["raised"],
+      valign: Gtk.Align.CENTER,
+    });
+    leftFolderButton.connect(
+      "clicked",
+      makeFolderChooserHandler(leftFolderEntry, "left-custom-folder"),
+    );
+    leftFolderRow.add_suffix(leftFolderButton);
     clickActionsGroup.add(leftFolderRow);
 
     // === RIGHT CLICK ===
@@ -607,6 +665,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: toDisplayPath(settings.get_string("right-click-app") || ""),
       hexpand: true,
       placeholder_text: "App or executable",
+      valign: Gtk.Align.CENTER,
     });
     rightAppEntry.connect("changed", () => {
       const displayText = rightAppEntry.get_text();
@@ -616,7 +675,10 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         rightAppEntry.set_text(toDisplayPath(absolutePath));
       }
     });
-    const rightChooserBtn = new Gtk.Button({ label: "Choose" });
+    const rightChooserBtn = new Gtk.Button({
+      label: "Choose",
+      valign: Gtk.Align.CENTER,
+    });
     rightChooserBtn.connect(
       "clicked",
       makeAppChooserHandler(rightAppEntry, "right-click-app"),
@@ -644,6 +706,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: settings.get_string("right-custom-command"),
       hexpand: true,
       placeholder_text: "Command or script",
+      valign: Gtk.Align.CENTER,
     });
     rightCmdEntry.connect("changed", () =>
       settings.set_string("right-custom-command", rightCmdEntry.get_text()),
@@ -658,6 +721,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: settings.get_string("right-custom-website") || "",
       hexpand: true,
       placeholder_text: "www.example.com",
+      valign: Gtk.Align.CENTER,
     });
     rightWebsiteEntry.connect("changed", () =>
       settings.set_string("right-custom-website", rightWebsiteEntry.get_text()),
@@ -671,6 +735,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       text: toDisplayPath(settings.get_string("right-custom-folder") || ""),
       hexpand: true,
       placeholder_text: "~/",
+      valign: Gtk.Align.CENTER,
     });
     rightFolderEntry.connect("changed", () => {
       const text = rightFolderEntry.get_text();
@@ -682,6 +747,18 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       settings.set_string("right-custom-folder", absolutePath);
     });
     rightFolderRow.add_suffix(rightFolderEntry);
+    const rightFolderButton = new Gtk.Button({
+      icon_name: "folder-open-symbolic",
+      has_tooltip: true,
+      tooltip_text: "Browse for folder",
+      css_classes: ["raised"],
+      valign: Gtk.Align.CENTER,
+    });
+    rightFolderButton.connect(
+      "clicked",
+      makeFolderChooserHandler(rightFolderEntry, "right-custom-folder"),
+    );
+    rightFolderRow.add_suffix(rightFolderButton);
     clickActionsGroup.add(rightFolderRow);
 
     // Visibility toggle for preferences rows
