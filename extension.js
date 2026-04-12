@@ -24,7 +24,7 @@ import * as PanelMenu from "resource:///org/gnome/shell/ui/panelMenu.js";
 import Gio from "gi://Gio";
 import GLib from "gi://GLib";
 import Meta from "gi://Meta";
-import Clutter from 'gi://Clutter';
+import Clutter from "gi://Clutter";
 
 // Main extension class
 export default class TopPanelLogoExtension extends Extension {
@@ -36,17 +36,12 @@ export default class TopPanelLogoExtension extends Extension {
 
     this._panelButton.remove_all_children();
 
-    function resolveIconPath(pathSetting) {
-      if (pathSetting.startsWith("~/")) {
-        return GLib.get_home_dir() + pathSetting.substring(1);
-      }
-      return pathSetting;
-    }
-    const resolvedPath = resolveIconPath(iconPath);
+    // If empty, use bundled default, otherwise use user's path
+    const finalIconPath = (iconPath === "" || iconPath === "/") ? this.path + "/gnome-foot.svg" : iconPath;
 
     let icon = null;
     try {
-      const iconFile = Gio.File.new_for_path(resolvedPath);
+      const iconFile = Gio.File.new_for_path(finalIconPath);
 
       if (iconFile.query_exists(null)) {
         // If the file exists, check if it's a valid image or icon
@@ -75,7 +70,7 @@ export default class TopPanelLogoExtension extends Extension {
 
       if (!icon) {
         // If the icon was not created, create fallback icon
-        console.log("Icon file not found or invalid: " + resolvedPath);
+        console.log("Icon file not found or invalid: " + finalIconPath);
         icon = new St.Icon({
           gicon: new Gio.ThemedIcon({ name: "image-x-generic" }),
           icon_size: iconSize,
@@ -356,7 +351,10 @@ export default class TopPanelLogoExtension extends Extension {
           }
         } catch (e) {
           console.error("Failed to Open Website:", e);
-          Main.notifyError("Top Panel Logo", `Failed to Open Website: ${e.message}`);
+          Main.notifyError(
+            "Top Panel Logo",
+            `Failed to Open Website: ${e.message}`,
+          );
         }
         break;
 
@@ -396,7 +394,10 @@ export default class TopPanelLogoExtension extends Extension {
           }
         } catch (e) {
           console.error("Failed to Open Folder:", e);
-          Main.notifyError("Top Panel Logo", `Failed to Open Folder: ${e.message}`);
+          Main.notifyError(
+            "Top Panel Logo",
+            `Failed to Open Folder: ${e.message}`,
+          );
         }
         break;
     }

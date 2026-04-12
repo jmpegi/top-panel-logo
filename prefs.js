@@ -26,6 +26,37 @@ import { ExtensionPreferences } from "resource:///org/gnome/Shell/Extensions/js/
 // Supported MIME file types for the 'Icon Path' file chooser
 const IMAGE_MIME_TYPES = ["image/*", "application/x-ico", "application/ico"];
 
+// Path helper functions
+const toDisplayPath = (absolutePath) => {
+  const homeDir = GLib.get_home_dir();
+  if (absolutePath === homeDir) return "~";
+  if (absolutePath.startsWith(homeDir + "/")) {
+    return "~" + absolutePath.substring(homeDir.length);
+  }
+  return absolutePath;
+};
+
+const toAbsolutePath = (displayPath) => {
+  if (displayPath === "~") return GLib.get_home_dir();
+  if (displayPath.startsWith("~/")) {
+    return GLib.get_home_dir() + displayPath.substring(1);
+  }
+  return displayPath;
+};
+
+// Helper for Flatpak detection
+const extractFlatpakId = (execLine, fallbackId) => {
+  let clean = execLine.replace(/%[fFuUdDnNickvm]/g, "").trim();
+  let parts = clean.split(/\s+/);
+  let idx = parts.findIndex((p) => p.endsWith("flatpak") || p === "flatpak");
+  if (idx === -1 || parts[idx + 1] !== "flatpak run") return null;
+  for (let i = idx + 2; i < parts.length; i++) {
+    if (!parts[i].startsWith("-")) return parts[i];
+  }
+  return fallbackId;
+};
+
+// === MAIN CLASS ===
 export default class TopPanelLogoPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
     window.default_height = 710;
@@ -114,9 +145,11 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     });
     mainGroup.add(prefsBox);
 
-    // === ICON SETTINGS ===
+    // === ICON SETTINGS GROUP ===
     const iconGroup = new Adw.PreferencesGroup({ title: "Icon Settings" });
     prefsBox.append(iconGroup);
+
+    // Icon Path
     const iconPathRow = new Adw.ActionRow({
       title: "Path",
     });
@@ -133,51 +166,26 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       return true; // Stop event propagation
     });
     const iconPathEntry = new Gtk.Entry({
-      text: iconPath,
+      text: toDisplayPath(iconPath),
       hexpand: true,
       placeholder_text: "/path/to/icon",
       valign: Gtk.Align.CENTER,
     });
 
-    // Debounce timeout for iconPathEntry
-    let iconPathTimeout = null;
-    function flushIconPath() {
-      if (iconPathTimeout) {
-        GLib.source_remove(iconPathTimeout);
-        iconPathTimeout = null;
-      }
-      const path = iconPathEntry.get_text();
-      const homeDir = GLib.get_home_dir();
-      const absolutePath = path.startsWith("~")
-        ? path.replace("~", homeDir)
-        : path;
-      settings.set_string("icon-path", absolutePath);
-      if (toDisplayPath(absolutePath) !== path) {
-        iconPathEntry.set_text(toDisplayPath(absolutePath));
-      }
-    }
-    // Flush on iconPathEntry changes
-    iconPathEntry.connect("changed", () => {
-      if (iconPathTimeout) GLib.source_remove(iconPathTimeout);
-      iconPathTimeout = GLib.timeout_add(GLib.PRIORITY_DEFAULT, 500, () => {
-        flushIconPath();
-        return GLib.SOURCE_REMOVE;
-      });
+    // Convert and save on Enter
+    iconPathEntry.connect("activate", () => {
+      const absolute = toAbsolutePath(iconPathEntry.get_text());
+      settings.set_string("icon-path", absolute);
+      iconPathEntry.set_text(toDisplayPath(absolute));
     });
-    // Also flush on 'Enter' keypress
-    iconPathEntry.connect("activate", flushIconPath);
-    // Also flush on focus-out
+
+    // Convert and save on focus-out
     iconPathEntry.connect("notify::has-focus", (entry) => {
       if (!entry.has_focus) {
-        flushIconPath();
+        const absolute = toAbsolutePath(entry.get_text());
+        settings.set_string("icon-path", absolute);
+        entry.set_text(toDisplayPath(absolute));
       }
-    });
-    // Also flush when the window appears
-    iconPathEntry.connect("map", flushIconPath);
-    // Also flush when closing the window
-    window.connect("close-request", () => {
-      flushIconPath();
-      return false;
     });
 
     // FileChooser for iconPathEntry
@@ -246,14 +254,8 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
                 }),
               );
             } else {
-              // Convert to ~ notation for display
-              const homeDir = GLib.get_home_dir();
-              let displayPath = absolutePath;
-              if (absolutePath.startsWith(homeDir + "/")) {
-                displayPath = "~" + absolutePath.substring(homeDir.length);
-              }
-              iconPathEntry.set_text(displayPath);
               settings.set_string("icon-path", absolutePath);
+              iconPathEntry.set_text(toDisplayPath(absolutePath));
             }
           }
         }
@@ -383,7 +385,13 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     paddingRow.add_suffix(paddingSpin);
     iconGroup.add(paddingRow);
 
-    // === ACTIONS ===
+    // === CLICK ACTIONS GROUP ===
+    const clickActionsGroup = new Adw.PreferencesGroup({
+      title: "Click Actions",
+    });
+    prefsBox.append(clickActionsGroup);
+
+    // Available Actions
     const actions = [
       "Show Overview",
       "Show Apps Grid",
@@ -395,37 +403,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       "Open Website",
       "Open Folder",
     ];
-
-    // Display/Absolute path helper functions
-    const toDisplayPath = (absolutePath) => {
-      const homeDir = GLib.get_home_dir();
-      if (absolutePath.startsWith(homeDir + "/")) {
-        return "~" + absolutePath.substring(homeDir.length);
-      }
-      return absolutePath;
-    };
-
-    const toAbsolutePath = (displayPath) => {
-      if (displayPath.startsWith("~/") || displayPath === "~") {
-        const homeDir = GLib.get_home_dir();
-        return displayPath.replace("~", homeDir);
-      }
-      return displayPath;
-    };
-
-    // Helper for Flatpak detection
-    const extractFlatpakId = (execLine, fallbackId) => {
-      let clean = execLine.replace(/%[fFuUdDnNickvm]/g, "").trim();
-      let parts = clean.split(/\s+/);
-      let idx = parts.findIndex(
-        (p) => p.endsWith("flatpak") || p === "flatpak",
-      );
-      if (idx === -1 || parts[idx + 1] !== "run") return null;
-      for (let i = idx + 2; i < parts.length; i++) {
-        if (!parts[i].startsWith("-")) return parts[i];
-      }
-      return fallbackId;
-    };
 
     // App Chooser dialog with Flatpak handling
     const makeAppChooserHandler = (entry, key) => () => {
@@ -502,12 +479,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       chooser.present();
     };
 
-    // === CLICK ACTIONS GROUP ===
-    const clickActionsGroup = new Adw.PreferencesGroup({
-      title: "Click Actions",
-    });
-    prefsBox.append(clickActionsGroup);
-
     // === LEFT CLICK ===
     const leftCombo = new Adw.ComboRow({ title: "Left Click" });
     const leftModel = new Gtk.StringList();
@@ -540,12 +511,16 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       placeholder_text: "App or executable",
       valign: Gtk.Align.CENTER,
     });
-    leftAppEntry.connect("changed", () => {
-      const displayText = leftAppEntry.get_text();
-      const absolutePath = toAbsolutePath(displayText);
-      settings.set_string("left-click-app", absolutePath);
-      if (toDisplayPath(absolutePath) !== displayText) {
-        leftAppEntry.set_text(toDisplayPath(absolutePath));
+    leftAppEntry.connect("activate", () => {
+      const absolute = toAbsolutePath(leftAppEntry.get_text());
+      settings.set_string("left-click-app", absolute);
+      leftAppEntry.set_text(toDisplayPath(absolute));
+    });
+    leftAppEntry.connect("notify::has-focus", (entry) => {
+      if (!entry.has_focus) {
+        const absolute = toAbsolutePath(entry.get_text());
+        settings.set_string("left-click-app", absolute);
+        entry.set_text(toDisplayPath(absolute));
       }
     });
     const leftChooserBtn = new Gtk.Button({
@@ -603,7 +578,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     clickActionsGroup.add(leftWebsiteRow);
 
     // Left folder
-    // === LEFT FOLDER (matching icon-path behavior) ===
     const leftFolderRow = new Adw.ActionRow({ title: "Folder Path" });
     const leftFolderEntry = new Gtk.Entry({
       text: toDisplayPath(settings.get_string("left-custom-folder") || ""),
@@ -611,16 +585,18 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       placeholder_text: "~/",
       valign: Gtk.Align.CENTER,
     });
-    leftFolderEntry.connect("changed", () => {
-      const text = leftFolderEntry.get_text();
-      const homeDir = GLib.get_home_dir();
-      const absolutePath =
-        text.startsWith("~/") || text === "~"
-          ? text.replace("~", homeDir)
-          : text;
-      settings.set_string("left-custom-folder", absolutePath);
+    leftFolderEntry.connect("activate", () => {
+      const absolute = toAbsolutePath(leftFolderEntry.get_text());
+      settings.set_string("left-custom-folder", absolute);
+      leftFolderEntry.set_text(toDisplayPath(absolute));
     });
-    leftFolderRow.add_suffix(leftFolderEntry);
+    leftFolderEntry.connect("notify::has-focus", (entry) => {
+      if (!entry.has_focus) {
+        const absolute = toAbsolutePath(entry.get_text());
+        settings.set_string("left-custom-folder", absolute);
+        entry.set_text(toDisplayPath(absolute));
+      }
+    });
     const leftFolderButton = new Gtk.Button({
       icon_name: "folder-open-symbolic",
       has_tooltip: true,
@@ -632,6 +608,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       "clicked",
       makeFolderChooserHandler(leftFolderEntry, "left-custom-folder"),
     );
+    leftFolderRow.add_suffix(leftFolderEntry);
     leftFolderRow.add_suffix(leftFolderButton);
     clickActionsGroup.add(leftFolderRow);
 
@@ -667,12 +644,16 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       placeholder_text: "App or executable",
       valign: Gtk.Align.CENTER,
     });
-    rightAppEntry.connect("changed", () => {
-      const displayText = rightAppEntry.get_text();
-      const absolutePath = toAbsolutePath(displayText);
-      settings.set_string("right-click-app", absolutePath);
-      if (toDisplayPath(absolutePath) !== displayText) {
-        rightAppEntry.set_text(toDisplayPath(absolutePath));
+    rightAppEntry.connect("activate", () => {
+      const absolute = toAbsolutePath(rightAppEntry.get_text());
+      settings.set_string("right-click-app", absolute);
+      rightAppEntry.set_text(toDisplayPath(absolute));
+    });
+    rightAppEntry.connect("notify::has-focus", (entry) => {
+      if (!entry.has_focus) {
+        const absolute = toAbsolutePath(entry.get_text());
+        settings.set_string("right-click-app", absolute);
+        entry.set_text(toDisplayPath(absolute));
       }
     });
     const rightChooserBtn = new Gtk.Button({
@@ -737,16 +718,18 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       placeholder_text: "~/",
       valign: Gtk.Align.CENTER,
     });
-    rightFolderEntry.connect("changed", () => {
-      const text = rightFolderEntry.get_text();
-      const homeDir = GLib.get_home_dir();
-      const absolutePath =
-        text.startsWith("~/") || text === "~"
-          ? text.replace("~", homeDir)
-          : text;
-      settings.set_string("right-custom-folder", absolutePath);
+    rightFolderEntry.connect("activate", () => {
+      const absolute = toAbsolutePath(rightFolderEntry.get_text());
+      settings.set_string("right-custom-folder", absolute);
+      rightFolderEntry.set_text(toDisplayPath(absolute));
     });
-    rightFolderRow.add_suffix(rightFolderEntry);
+    rightFolderEntry.connect("notify::has-focus", (entry) => {
+      if (!entry.has_focus) {
+        const absolute = toAbsolutePath(entry.get_text());
+        settings.set_string("right-custom-folder", absolute);
+        entry.set_text(toDisplayPath(absolute));
+      }
+    });
     const rightFolderButton = new Gtk.Button({
       icon_name: "folder-open-symbolic",
       has_tooltip: true,
@@ -758,6 +741,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       "clicked",
       makeFolderChooserHandler(rightFolderEntry, "right-custom-folder"),
     );
+    rightFolderRow.add_suffix(rightFolderEntry);
     rightFolderRow.add_suffix(rightFolderButton);
     clickActionsGroup.add(rightFolderRow);
 
@@ -769,7 +753,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       rowWebsite.set_visible(sel === 7);
       rowFolder.set_visible(sel === 8);
     };
-
     leftCombo.connect("notify::selected", () =>
       toggleVis(
         leftCombo,
@@ -788,7 +771,6 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         rightFolderRow,
       ),
     );
-
     toggleVis(leftCombo, leftAppRow, leftCmdRow, leftWebsiteRow, leftFolderRow);
     toggleVis(
       rightCombo,
@@ -880,7 +862,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
         .get_key("icon-path")
         .get_default_value();
       settings.set_value("icon-path", defIconPath);
-      iconPathEntry.set_text(defIconPath.unpack());
+      iconPathEntry.set_text(toDisplayPath(defIconPath.unpack()));
 
       let defIconPosition = settings.settings_schema
         .get_key("icon-position")
