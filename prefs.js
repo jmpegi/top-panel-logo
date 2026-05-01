@@ -59,7 +59,7 @@ const extractFlatpakId = (execLine, fallbackId) => {
 // === MAIN CLASS ===
 export default class TopPanelLogoPreferences extends ExtensionPreferences {
   fillPreferencesWindow(window) {
-    window.default_height = 710;
+    window.default_height = 800;
 
     const settings = this.getSettings();
 
@@ -343,8 +343,16 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
     iconOrderRow.add_suffix(iconOrderSpin);
     iconGroup.add(iconOrderRow);
 
+    const sizePaddingBgGroup = new Adw.PreferencesGroup({
+      title: "",
+    });
+    prefsBox.append(sizePaddingBgGroup);
+
     // Icon Size
-    const iconSizeRow = new Adw.ActionRow({ title: "Size (px)" });
+    const iconSizeRow = new Adw.ActionRow({
+      title: "Size (px)",
+      css_classes: ["spaced-top"],
+    });
     const iconSizeSpin = new Gtk.SpinButton({
       adjustment: new Gtk.Adjustment({
         lower: 16,
@@ -362,7 +370,7 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       settings.set_int("icon-size", iconSizeSpin.get_value()),
     );
     iconSizeRow.add_suffix(iconSizeSpin);
-    iconGroup.add(iconSizeRow);
+    sizePaddingBgGroup.add(iconSizeRow);
 
     // Icon Padding
     const paddingRow = new Adw.ActionRow({ title: "Padding (px)" });
@@ -383,7 +391,187 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       settings.set_int("horizontal-padding", paddingSpin.get_value()),
     );
     paddingRow.add_suffix(paddingSpin);
-    iconGroup.add(paddingRow);
+    sizePaddingBgGroup.add(paddingRow);
+
+    // Unpack background settings
+    const backgroundMode =
+      settings.get_string("background-mode") ||
+      settings.settings_schema
+        .get_key("background-mode")
+        .get_default_value()
+        .unpack() ||
+      "transparent";
+
+    const backgroundColor =
+      settings.get_string("background-color") ||
+      settings.settings_schema
+        .get_key("background-color")
+        .get_default_value()
+        .unpack() ||
+      "#ffffff";
+
+    const backgroundOpacity =
+      settings.get_int("background-opacity") ||
+      settings.settings_schema
+        .get_key("background-opacity")
+        .get_default_value()
+        .unpack() ||
+      30;
+
+    // Background Mode
+    const modeRow = new Adw.ComboRow({ title: "Background Color" });
+    const modeModel = new Gtk.StringList();
+    modeModel.append("Transparent");
+    modeModel.append("Custom");
+    modeRow.model = modeModel;
+    modeRow.selected = backgroundMode === "custom" ? 1 : 0;
+
+    modeRow.connect("notify::selected", () => {
+      const isCustom = modeRow.get_selected() === 1;
+      settings.set_string(
+        "background-mode",
+        isCustom ? "custom" : "transparent",
+      );
+      // Toggle visibility of color/opacity rows
+      colorRow.set_visible(isCustom);
+      opacityRow.set_visible(isCustom);
+    });
+    sizePaddingBgGroup.add(modeRow);
+
+    // Background Color
+    const colorRow = new Adw.ActionRow({ title: "Color" });
+    const colorEntry = new Gtk.Entry({
+      text: backgroundColor,
+      hexpand: false,
+      placeholder_text: "#RRGGBB",
+      valign: Gtk.Align.CENTER,
+      width_chars: 9,
+    });
+    // Validate and save hex color
+    colorEntry.connect("changed", () => {
+      const val = colorEntry.get_text().trim();
+      if (/^#[0-9A-Fa-f]{6}$/.test(val)) {
+        settings.set_string("background-color", val);
+      }
+    });
+
+    // Color swatch button
+    const colorSwatch = new Gtk.Button({
+      valign: Gtk.Align.CENTER,
+      css_classes: ["raised"],
+      tooltip_text: "Choose color",
+    });
+
+    // DrawingArea for color preview
+    const colorPreview = new Gtk.DrawingArea({
+      width_request: 24,
+      height_request: 24,
+    });
+    colorPreview.set_draw_func((area, cr, width, height) => {
+      const hex = colorEntry.get_text().trim();
+      if (/^#[0-9A-Fa-f]{6}$/.test(hex)) {
+        const r = parseInt(hex.slice(1, 3), 16) / 255;
+        const g = parseInt(hex.slice(3, 5), 16) / 255;
+        const b = parseInt(hex.slice(5, 7), 16) / 255;
+        cr.setSourceRGB(r, g, b);
+        cr.rectangle(0, 0, width, height);
+        cr.fill();
+        // Optional border
+        cr.setSourceRGB(0.2, 0.2, 0.2);
+        cr.setLineWidth(1);
+        cr.stroke();
+      }
+    });
+
+    colorSwatch.set_child(colorPreview);
+
+    // Redraw swatch when entry changes
+    colorEntry.connect("changed", () => {
+      colorPreview.queue_draw();
+    });
+
+    // Open color chooser
+    colorSwatch.connect("clicked", () => {
+      const chooser = new Gtk.ColorChooserWidget({
+        use_alpha: false,
+      });
+
+      const dialog = new Gtk.Dialog({
+        title: "Choose Background Color",
+        transient_for: window,
+        use_header_bar: true,
+        modal: true,
+      });
+
+      dialog.add_button("Cancel", Gtk.ResponseType.CANCEL);
+      dialog.add_button("OK", Gtk.ResponseType.OK);
+      dialog.set_default_response(Gtk.ResponseType.OK);
+
+      dialog.get_content_area().append(chooser);
+      dialog.set_default_size(400, 350);
+
+      dialog.connect("response", (dlg, resp) => {
+        if (resp === Gtk.ResponseType.OK) {
+          const rgba = chooser.get_rgba();
+          const toHex = (c) =>
+            Math.round(c * 255)
+              .toString(16)
+              .padStart(2, "0");
+          const newHex = `#${toHex(rgba.red)}${toHex(rgba.green)}${toHex(rgba.blue)}`;
+          settings.set_string("background-color", newHex);
+          colorEntry.set_text(newHex);
+        }
+        dlg.destroy();
+      });
+
+      dialog.present();
+    });
+
+    colorRow.add_suffix(colorEntry);
+    colorRow.add_suffix(colorSwatch);
+    sizePaddingBgGroup.add(colorRow);
+
+    // Background Opacity
+    const opacityRow = new Adw.ActionRow({ title: "Opacity" });
+    const opacityInfoButton = new Gtk.Button({
+      icon_name: "help-about-symbolic",
+      tooltip_text:
+        "Transparency level (0 = fully transparent, 100 = fully opaque)",
+      has_tooltip: true,
+      css_classes: ["flat"],
+      valign: Gtk.Align.CENTER,
+    });
+    opacityInfoButton.connect("clicked", (button) => {
+      button.set_tooltip_text(button.get_tooltip_text());
+      return true;
+    });
+
+    const opacityScale = new Gtk.Scale({
+      adjustment: new Gtk.Adjustment({
+        lower: 0,
+        upper: 100,
+        step_increment: 1,
+        page_increment: 10,
+      }),
+      digits: 0,
+      hexpand: true,
+      valign: Gtk.Align.CENTER,
+      draw_value: true,
+      value_pos: Gtk.PositionType.RIGHT,
+    });
+    opacityScale.set_value(backgroundOpacity);
+    opacityScale.connect("value-changed", () =>
+      settings.set_int("background-opacity", opacityScale.get_value()),
+    );
+
+    opacityRow.add_suffix(opacityInfoButton);
+    opacityRow.add_suffix(opacityScale);
+    sizePaddingBgGroup.add(opacityRow);
+
+    // Set initial visibility
+    const isCustomInit = backgroundMode === "custom";
+    colorRow.set_visible(isCustomInit);
+    opacityRow.set_visible(isCustomInit);
 
     // === CLICK ACTIONS GROUP ===
     const clickActionsGroup = new Adw.PreferencesGroup({
@@ -942,6 +1130,27 @@ export default class TopPanelLogoPreferences extends ExtensionPreferences {
       settings.set_value("click-cooldown", defCooldown);
       cooldownSpin.set_value(defCooldown.unpack());
       cooldownSpin.emit("value-changed");
+
+      let defBgMode = settings.settings_schema
+        .get_key("background-mode")
+        .get_default_value();
+      settings.set_value("background-mode", defBgMode);
+      modeRow.set_selected(defBgMode.unpack() === "custom" ? 1 : 0);
+      modeRow.notify("selected");
+
+      let defBgColor = settings.settings_schema
+        .get_key("background-color")
+        .get_default_value();
+      settings.set_value("background-color", defBgColor);
+      colorEntry.set_text(defBgColor.unpack());
+      colorEntry.emit("changed");
+
+      let defBgOpacity = settings.settings_schema
+        .get_key("background-opacity")
+        .get_default_value();
+      settings.set_value("background-opacity", defBgOpacity);
+      opacityScale.set_value(defBgOpacity.unpack());
+      opacityScale.emit("value-changed");
     };
   }
 }

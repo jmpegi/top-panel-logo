@@ -32,6 +32,24 @@
       <description>Padding around the icon (px)</description>
     </key>
 
+    <key name="background-mode" type="s">
+      <default>"transparent"</default>
+      <summary>Background mode</summary>
+      <description>Either "transparent" or "custom"</description>
+    </key>
+
+    <key name="background-color" type="s">
+      <default>"#ffffff"</default>
+      <summary>Custom background color</summary>
+      <description>Hex color code (e.g. #RRGGBB)</description>
+    </key>
+
+    <key name="background-opacity" type="i">
+      <default>30</default>
+      <summary>Background opacity</summary>
+      <description>Opacity percentage (0–100)</description>
+    </key>
+
     <key type="i" name="click-cooldown">
       <default>300</default>
       <summary>Click cooldown</summary>

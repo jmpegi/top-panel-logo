@@ -37,7 +37,10 @@ export default class TopPanelLogoExtension extends Extension {
     this._panelButton.remove_all_children();
 
     // If empty, use bundled default, otherwise use user's path
-    const finalIconPath = (iconPath === "" || iconPath === "/") ? this.path + "/gnome-foot.svg" : iconPath;
+    const finalIconPath =
+      iconPath === "" || iconPath === "/"
+        ? this.path + "/gnome-foot.svg"
+        : iconPath;
 
     let icon = null;
     try {
@@ -138,6 +141,26 @@ export default class TopPanelLogoExtension extends Extension {
     targetContainer.insert_child_at_index(this._panelButton, iconOrder);
   }
 
+  // Updates the button's background color or transparency
+  _updateBackground() {
+    if (!this._panelButton) return;
+
+    const mode = this._settings.get_string("background-mode");
+    const color = this._settings.get_string("background-color");
+    const opacity = this._settings.get_int("background-opacity");
+
+    if (mode === "custom" && color && /^#[0-9A-Fa-f]{6}$/.test(color)) {
+      const alpha = Math.max(0, Math.min(opacity, 100)) / 100.0;
+      const r = parseInt(color.slice(1, 3), 16);
+      const g = parseInt(color.slice(3, 5), 16);
+      const b = parseInt(color.slice(5, 7), 16);
+      const rgba = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+      this._panelButton.set_style(`background-color: ${rgba};`);
+    } else {
+      this._panelButton.set_style("background-color: transparent;");
+    }
+  }
+
   // Called when extension is enabled by the user
   enable() {
     this._settings = this.getSettings();
@@ -157,6 +180,9 @@ export default class TopPanelLogoExtension extends Extension {
     // Add button to panel
     this._updatePosition();
 
+    // Apply background color / transparency
+    this._updateBackground();
+
     // Watch for relevant settings changes and update icon when needed
     this._settingsChangedHandlers = [
       this._settings.connect("changed::icon-path", () => this._updateIcon()),
@@ -170,22 +196,34 @@ export default class TopPanelLogoExtension extends Extension {
       this._settings.connect("changed::icon-order", () =>
         this._updatePosition(),
       ),
+      this._settings.connect("changed::background-mode", () =>
+        this._updateBackground(),
+      ),
+      this._settings.connect("changed::background-color", () =>
+        this._updateBackground(),
+      ),
+      this._settings.connect("changed::background-opacity", () =>
+        this._updateBackground(),
+      ),
     ];
 
     // Handle mouse click events (left/right click)
-    this._panelButton.connect("button-press-event", (actor, event) => {
-      const button = event.get_button();
-      if (button === Clutter.BUTTON_PRIMARY) {
-        // Left click action
-        const leftClickAction = this._settings.get_int("left-click-action");
-        this._handleClickAction(leftClickAction, "left");
-      } else if (button === Clutter.BUTTON_SECONDARY) {
-        // Right click action
-        const rightClickAction = this._settings.get_int("right-click-action");
-        this._handleClickAction(rightClickAction, "right");
-      }
-      return true; // Prevent further handling
-    });
+    this._buttonPressHandler = this._panelButton.connect(
+      "button-press-event",
+      (actor, event) => {
+        const button = event.get_button();
+        if (button === Clutter.BUTTON_PRIMARY) {
+          // Left click action
+          const leftClickAction = this._settings.get_int("left-click-action");
+          this._handleClickAction(leftClickAction, "left");
+        } else if (button === Clutter.BUTTON_SECONDARY) {
+          // Right click action
+          const rightClickAction = this._settings.get_int("right-click-action");
+          this._handleClickAction(rightClickAction, "right");
+        }
+        return true; // Prevent further handling
+      },
+    );
   }
 
   // Respond to the mouse click actions as configured in settings
@@ -259,6 +297,7 @@ export default class TopPanelLogoExtension extends Extension {
           }
         } catch (e) {
           console.error("Failed to hide/show visible windows:", e);
+          Main.notify("Top Panel Logo", "Failed to hide/show visible windows");
         }
         break;
 
@@ -412,11 +451,12 @@ export default class TopPanelLogoExtension extends Extension {
       this._settingsChangedHandlers = null;
     }
 
-    if (this._workspaceChangedId) {
-      global.workspace_manager.disconnect(this._workspaceChangedId);
-      this._workspaceChangedId = null;
-    }
     this._desktopHiddenWindows = [];
+
+    if (this._buttonPressHandler) {
+      this._panelButton.disconnect(this._buttonPressHandler);
+      this._buttonPressHandler = null;
+    }
 
     // Remove the button from the panel
     this._panelButton?.destroy();
