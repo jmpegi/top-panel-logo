@@ -224,6 +224,21 @@ export default class TopPanelLogoExtension extends Extension {
         return true; // Prevent further handling
       },
     );
+
+    // Handle touchscreen taps as left clicks
+    this._touchHandler = this._panelButton.connect(
+      "touch-event",
+      (_actor, event) => {
+        if (event.type() === Clutter.EventType.TOUCH_END) {
+          const leftClickAction = this._settings.get_int("left-click-action");
+          this._handleClickAction(leftClickAction, "left");
+
+          return Clutter.EVENT_STOP;
+        }
+
+        return Clutter.EVENT_PROPAGATE;
+      },
+    );
   }
 
   // Respond to the mouse click actions as configured in settings
@@ -456,6 +471,11 @@ export default class TopPanelLogoExtension extends Extension {
     if (this._buttonPressHandler) {
       this._panelButton.disconnect(this._buttonPressHandler);
       this._buttonPressHandler = null;
+    }
+
+    if (this._touchHandler) {
+      this._panelButton.disconnect(this._touchHandler);
+      this._touchHandler = null;
     }
 
     // Remove the button from the panel
