@@ -48,6 +48,8 @@ For either Left Click or Right Click (independently), choose from:
 
 - 'Padding' – Adjust space on either side of the icon.
 
+- 'Background Color' – Choose a background color (transparent or solid) for the icon.
+
 ## 🚀 Usage Examples
 
 Left click: Show Overview, Right click: Hide Visible Windows.
